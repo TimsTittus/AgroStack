@@ -4,7 +4,8 @@ import { Search, Bell, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useState } from "react";
-
+import GoogleTranslate from "./GoogleTranslate";
+import LanguageSwitcher from "./LanguageSwitcher";
 export function Navbar() {
   const [searchFocused, setSearchFocused] = useState(false);
 
@@ -33,7 +34,7 @@ export function Navbar() {
           onBlur={() => setSearchFocused(false)}
         />
       </div>
-
+     
       <div className="flex items-center gap-4">
         <button className="group relative flex h-10 w-10 items-center justify-center rounded-full bg-white/60 transition-all duration-200 hover:bg-[#e8f0e4] hover:shadow-md">
           <Bell className="h-\[18px] w-\[18px] text-[#5c7a5c] transition-colors group-hover:text-[#2d6a4f]" />
@@ -41,6 +42,10 @@ export function Navbar() {
             3
           </span>
         </button>
+        <div className="flex justify-end gap-4 p-4">
+              <GoogleTranslate />
+              <LanguageSwitcher />
+            </div>
         <button className="flex items-center gap-2.5 rounded-full bg-white/60 py-1.5 pl-1.5 pr-3 transition-all duration-200 hover:bg-[#e8f0e4] hover:shadow-md">
           <Avatar className="h-8 w-8 ring-2 ring-[#b7e4c7]">
             <AvatarImage src="https://avatars.githubusercontent.com/u/73917119?v=4" />
