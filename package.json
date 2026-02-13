@@ -9,6 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@react-email/components": "^1.0.7",
+    "@react-email/render": "^2.0.4",
     "@tanstack/react-query": "^5.90.21",
     "@trpc/client": "^11.10.0",
     "@trpc/react-query": "^11.10.0",
@@ -27,6 +29,7 @@
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-email": "^5.2.8",
     "superjson": "^2.2.6",
     "tailwind-merge": "^3.4.0",
     "twilio": "^5.12.1",
