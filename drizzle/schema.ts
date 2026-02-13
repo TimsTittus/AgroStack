@@ -70,5 +70,46 @@ export const session = pgTable("session", {
 	unique("session_token_unique").on(table.token),
 ]);
 
+export const products = pgTable("products", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	name: text().notNull(),
+	price: text().notNull(),
+	quantity: text().notNull(),
+	userid: text().notNull(),
+	description: text(),
+	image: text().notNull(),
+}, (table) => [
+	foreignKey({
+			columns: [table.userid],
+			foreignColumns: [user.id],
+			name: "products_userid_fkey"
+		}),
+]);
 
-
+export const orders = pgTable("orders", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	name: text(),
+	buyerId: text("buyer_id").notNull(),
+	quantity: text().notNull(),
+	price: text().notNull(),
+	farmerId: text("farmer_id").notNull(),
+	productId: uuid("product_id").notNull(),
+}, (table) => [
+	foreignKey({
+			columns: [table.buyerId],
+			foreignColumns: [user.id],
+			name: "orders_buyer_id_fkey"
+		}),
+	foreignKey({
+			columns: [table.farmerId],
+			foreignColumns: [user.id],
+			name: "orders_farmer_id_fkey"
+		}),
+	foreignKey({
+			columns: [table.productId],
+			foreignColumns: [products.id],
+			name: "orders_product_id_fkey"
+		}),
+]);

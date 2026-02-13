@@ -1,20 +1,6 @@
 import { pgTable, index, text, timestamp, unique, boolean, foreignKey, uuid } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
-export const user = pgTable("user", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  role: text("role").notNull(),
-  phone: text("phone").notNull(),
-  email: text("email").notNull().unique(),
-  emailVerified: boolean("email_verified").default(false).notNull(),
-  image: text("image"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at")
-    .defaultNow()
-    .$onUpdate(() => /* @__PURE__ */ new Date())
-    .notNull(),
-});
 
 
 export const verification = pgTable("verification", {
@@ -98,5 +84,32 @@ export const products = pgTable("products", {
 			columns: [table.userid],
 			foreignColumns: [user.id],
 			name: "products_userid_fkey"
+		}),
+]);
+
+export const orders = pgTable("orders", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	name: text(),
+	buyerId: text("buyer_id").notNull(),
+	quantity: text().notNull(),
+	price: text().notNull(),
+	farmerId: text("farmer_id").notNull(),
+	productId: uuid("product_id").notNull(),
+}, (table) => [
+	foreignKey({
+			columns: [table.buyerId],
+			foreignColumns: [user.id],
+			name: "orders_buyer_id_fkey"
+		}),
+	foreignKey({
+			columns: [table.farmerId],
+			foreignColumns: [user.id],
+			name: "orders_farmer_id_fkey"
+		}),
+	foreignKey({
+			columns: [table.productId],
+			foreignColumns: [products.id],
+			name: "orders_product_id_fkey"
 		}),
 ]);
