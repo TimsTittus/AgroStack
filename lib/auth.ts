@@ -18,4 +18,20 @@ export const auth = betterAuth({
   sendOnSignUp: true,
   autoSignInAfterVerification: true,
   expiresIn: 3600,
+  user: {
+        additionalFields: {
+            role: {
+                type: 'string',
+                required: true, 
+                defaultValue: null,
+                input: true 
+            },
+            phone: {
+                type: 'string',
+                required: true,
+                defaultValue: null,
+                input: true 
+            }
+        }
+    }
 });
