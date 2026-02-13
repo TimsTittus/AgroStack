@@ -70,14 +70,5 @@ export const session = pgTable("session", {
 	unique("session_token_unique").on(table.token),
 ]);
 
-import { createTRPCRouter, protectedProcedure } from "../init";
-import { db } from "@/server/db";
-import { products } from "@/server/db/schema";
 
-export const productRouter = createTRPCRouter({
-  getProducts: protectedProcedure.query(async () => {
-    const data = await db.select().from(products).orderBy(products.createdAt);
-    return data;
-  }),
-});
 
