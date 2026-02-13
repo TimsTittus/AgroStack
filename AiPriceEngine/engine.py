@@ -40,6 +40,132 @@ from data_manager import (
     prepare_prophet_df,
 )
 
+import operator
+
+logger = logging.getLogger("agrostack.engine")
+
+# Kottayam Agronomic Crop Knowledge Base (25 crops)
+
+CROP_KNOWLEDGE: Dict[str, Dict[str, Any]] = {
+    # Plantation & High Value
+    "rubber":         {"metric": "precip",    "op": ">", "val": 0.1,  "bias": 1.05, "impact": "Tapping interference detected. Daily supply likely to drop."},
+    "black pepper":   {"metric": "humidity",  "op": ">", "val": 85,   "bias": 1.08, "impact": "Fungal stress alert. Potential for spike shedding."},
+    "pepper":         {"metric": "humidity",  "op": ">", "val": 85,   "bias": 1.08, "impact": "Fungal stress alert. Potential for spike shedding."},
+    "cardamom":       {"metric": "temp",      "op": ">", "val": 30,   "bias": 1.06, "impact": "Heat stress in high-ranges. Quality of green capsules may decline."},
+    "coffee robusta": {"metric": "rain_24h",  "op": "<", "val": 10,   "bias": 1.04, "impact": "Blossom shower delay detected; critical for bean setting."},
+    "tea":            {"metric": "temp",      "op": "<", "val": 15,   "bias": 1.05, "impact": "Frost/Cold stress in high-altitudes. Slows flush growth."},
+    "arecanut":       {"metric": "humidity",  "op": ">", "val": 90,   "bias": 1.07, "impact": "Mahali (fruit rot) risk high due to persistent dampness."},
+    "cashew":         {"metric": "precip",    "op": ">", "val": 5,    "bias": 1.04, "impact": "Unseasonal rain during flowering causes nut-drop and mold."},
+    # Tubers & Field Crops
+    "paddy":          {"metric": "rain_24h",  "op": ">", "val": 50,   "bias": 1.06, "impact": "Submergence risk during grain filling. Supply chain disruption likely."},
+    "rice":           {"metric": "rain_24h",  "op": ">", "val": 50,   "bias": 1.06, "impact": "Submergence risk during grain filling. Supply chain disruption likely."},
+    "tapioca":        {"metric": "rain_24h",  "op": ">", "val": 120,  "bias": 0.90, "impact": "Root saturation detected. Quality of starch may be affected."},
+    "yam":            {"metric": "temp",      "op": ">", "val": 38,   "bias": 1.04, "impact": "Heat stress affecting tuber expansion in laterite soils."},
+    "sweet potato":   {"metric": "humidity",  "op": "<", "val": 50,   "bias": 1.03, "impact": "Dry spell detected; critical for vine health in Kottayam midlands."},
+    # Fruits & Vegetables
+    "banana nendran": {"metric": "wind_speed","op": ">", "val": 40,   "bias": 1.10, "impact": "Lodging risk high for heavy bunches. Supply volatility expected."},
+    "banana":         {"metric": "wind_speed","op": ">", "val": 40,   "bias": 1.10, "impact": "Lodging risk high for heavy bunches. Supply volatility expected."},
+    "pineapple":      {"metric": "temp",      "op": ">", "val": 34,   "bias": 1.03, "impact": "Sun-scald warning. Grade-A availability may tighten."},
+    "jackfruit":      {"metric": "rain_24h",  "op": ">", "val": 80,   "bias": 1.05, "impact": "Internal rot risk due to excessive moisture absorption."},
+    "mango":          {"metric": "precip",    "op": ">", "val": 2,    "bias": 1.06, "impact": "Unseasonal rain during bloom may cause 'Powdery Mildew'."},
+    "papaya":         {"metric": "humidity",  "op": ">", "val": 95,   "bias": 1.04, "impact": "Anthracnose risk high. Shelf-life of harvest will decrease."},
+    "ginger":         {"metric": "rain_24h",  "op": ">", "val": 150,  "bias": 1.08, "impact": "Rhizome rot alert. Extreme moisture in clay-rich soils."},
+    "turmeric":       {"metric": "temp",      "op": ">", "val": 36,   "bias": 1.04, "impact": "Leaf blotch risk during extreme heat waves."},
+    "nutmeg":         {"metric": "wind_speed","op": ">", "val": 35,   "bias": 1.06, "impact": "Fruit drop alert. High sensitivity to heavy monsoon gusts."},
+    "cocoa":          {"metric": "humidity",  "op": "<", "val": 60,   "bias": 1.05, "impact": "Pod desiccation risk. Requires immediate shade management."},
+    # Others
+    "clove":          {"metric": "temp",      "op": ">", "val": 32,   "bias": 1.04, "impact": "Drying stress on flower buds; impacts oil content."},
+    "vanilla":        {"metric": "humidity",  "op": ">", "val": 80,   "bias": 1.05, "impact": "Critical for pollination success and bean length."},
+    "betel leaf":     {"metric": "temp",      "op": "<", "val": 18,   "bias": 1.03, "impact": "Cold-induced wilting; common in Kottayam winter nights."},
+    "cinnamon":       {"metric": "precip",    "op": ">", "val": 20,   "bias": 1.04, "impact": "Bark peeling difficulty increases with soil moisture spikes."},
+    "garlic":         {"metric": "humidity",  "op": ">", "val": 70,   "bias": 1.05, "impact": "Bulb mold risk; requires dry conditions for curing."},
+    "coconut":        {"metric": "wind_speed","op": ">", "val": 50,   "bias": 1.12, "impact": "Button shedding / Premature nut fall due to high winds."},
+}
+
+_OPS = {
+    ">": operator.gt,
+    "<": operator.lt,
+    ">=": operator.ge,
+    "<=": operator.le,
+}
+
+
+class AgronomicAdvisoryLayer:
+    """Weather-aware expert system for Kottayam crops.
+
+    Evaluates live weather against crop-specific biological thresholds
+    from ``CROP_KNOWLEDGE`` and returns a bias multiplier + impact insight.
+    """
+
+    def evaluate(
+        self,
+        crop_id: str,
+        weather: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Check if weather triggers a biological risk for *crop_id*.
+
+        Parameters
+        ----------
+        crop_id : str
+            Crop identifier (lowercase, e.g. ``"rubber"``).
+        weather : dict
+            Weather snapshot from ``WeatherClient.fetch()``.
+
+        Returns
+        -------
+        Dict[str, Any]
+            ``triggered``            — bool, whether a threshold was breached
+            ``biological_risk_alert``— bool (same as triggered)
+            ``bias``                 — float multiplier (1.0 if not triggered)
+            ``insight``              — str, agronomic impact description
+            ``rule_used``            — str, human-readable threshold rule
+            ``metric_value``         — float, actual weather value checked
+        """
+        lookup = crop_id.strip().lower()
+
+        # Try exact match, then title-case match
+        rule = CROP_KNOWLEDGE.get(lookup)
+        if rule is None:
+            # Also try with underscores replaced by spaces
+            rule = CROP_KNOWLEDGE.get(lookup.replace("_", " "))
+
+        if rule is None:
+            return {
+                "triggered": False,
+                "biological_risk_alert": False,
+                "bias": 1.0,
+                "insight": f"No agronomic rules defined for '{crop_id}'.",
+                "rule_used": "none",
+                "metric_value": None,
+            }
+
+        metric = rule["metric"]
+        op_str = rule["op"]
+        threshold = rule["val"]
+        op_fn = _OPS.get(op_str, operator.gt)
+
+        actual_value = float(weather.get(metric, 0))
+        triggered = op_fn(actual_value, threshold)
+
+        if triggered:
+            return {
+                "triggered": True,
+                "biological_risk_alert": True,
+                "bias": rule["bias"],
+                "insight": rule["impact"],
+                "rule_used": f"{metric} {op_str} {threshold}",
+                "metric_value": actual_value,
+            }
+
+        return {
+            "triggered": False,
+            "biological_risk_alert": False,
+            "bias": 1.0,
+            "insight": f"No biological risk detected for {crop_id.title()}. Weather within safe thresholds.",
+            "rule_used": f"{metric} {op_str} {threshold}",
+            "metric_value": actual_value,
+        }
+
 # SeasonalityModel — Prophet
 class SeasonalityModel:
     """12-month cyclical trend forecaster powered by Meta Prophet.
@@ -308,12 +434,14 @@ class HybridPredictor:
         self,
         crop_id: str,
         current_price: float,
+        advisory_bias: float = 1.0,
     ) -> Dict[str, Any]:
         """Produce a 30-day forecast anchored to a *live* current price.
 
-        The formula uses Prophet/LSTM as multipliers on the live base:
+        The formula uses Prophet/LSTM as multipliers on the live base,
+        then applies the agronomic advisory bias:
 
-            predicted = current_price × (prophet_mult × 0.7 + lstm_mult × 0.3)
+            predicted = current_price × (prophet_mult×0.7 + lstm_mult×0.3) × bias
 
         Parameters
         ----------
@@ -321,6 +449,8 @@ class HybridPredictor:
             Crop identifier (e.g. ``"rubber"``).
         current_price : float
             Live Kerala avg modal price from ``LivePriceInformer``.
+        advisory_bias : float
+            Multiplicative bias from ``AgronomicAdvisoryLayer`` (default 1.0).
 
         Returns
         -------
@@ -353,11 +483,10 @@ class HybridPredictor:
             prophet_mult = 1.0
             lstm_mult = 1.0
 
-        predicted_price = round(
-            current_price * (
-                prophet_mult * PROPHET_WEIGHT + lstm_mult * LSTM_WEIGHT
-            ), 2
+        base_predicted = current_price * (
+            prophet_mult * PROPHET_WEIGHT + lstm_mult * LSTM_WEIGHT
         )
+        predicted_price = round(base_predicted * advisory_bias, 2)
 
         # XAI
         xai = self._generate_xai_attribution(
@@ -370,6 +499,7 @@ class HybridPredictor:
             "crop_name": crop_name,
             "current_price": round(current_price, 2),
             "predicted_price": predicted_price,
+            "bias_applied": round(advisory_bias, 4),
             "prophet_trend": round(prophet_trend, 2),
             "prophet_multiplier": round(prophet_mult, 4),
             "lstm_correction": round(lstm_correction, 2),
@@ -379,6 +509,7 @@ class HybridPredictor:
             "last_known_training_price": round(last_known, 2),
             **xai,
         }
+
 
 
     def get_prediction(self, crop_id: str = "wheat") -> Dict[str, Any]:

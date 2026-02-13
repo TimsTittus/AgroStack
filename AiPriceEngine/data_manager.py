@@ -250,9 +250,7 @@ def prepare_prophet_df(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-# ─────────────────────────────────────────────────────────────────────
 # 6. Live Kerala Mandi Prices — Data.gov.in
-# ─────────────────────────────────────────────────────────────────────
 
 _MANDI_RESOURCE = (
     "https://api.data.gov.in/resource/"
@@ -380,3 +378,103 @@ class LivePriceInformer:
             "districts": districts,
             "records": records,
         }
+
+
+# 7. Live Weather — Open-Meteo (Kottayam default)
+
+_OPENMETEO_CURRENT = "https://api.open-meteo.com/v1/forecast"
+
+# Kottayam, Kerala defaults
+_DEFAULT_LAT = 9.5916
+_DEFAULT_LON = 76.5222
+
+
+class WeatherClient:
+    """Async weather fetcher from Open-Meteo for Kottayam, Kerala.
+
+    Fetches current conditions and a 24-hour rainfall total for
+    waterlogging / biological risk assessment.
+    """
+
+    def __init__(self, timeout: float = 15.0) -> None:
+        self.timeout = timeout
+
+    async def fetch(
+        self,
+        lat: float = _DEFAULT_LAT,
+        lon: float = _DEFAULT_LON,
+    ) -> Dict[str, Any]:
+        """Fetch current weather + 24h rainfall for the given coordinates.
+
+        Returns
+        -------
+        Dict[str, Any]
+            ``temp``       — temperature (°C)
+            ``humidity``   — relative humidity (%)
+            ``precip``     — current precipitation (mm)
+            ``rain``       — current rain (mm)
+            ``wind_speed`` — wind speed at 10 m (km/h)
+            ``rain_24h``   — sum of rain over the last/next 24 hours (mm)
+        """
+        defaults: Dict[str, Any] = {
+            "temp": 0.0,
+            "humidity": 0.0,
+            "precip": 0.0,
+            "rain": 0.0,
+            "wind_speed": 0.0,
+            "rain_24h": 0.0,
+        }
+
+        params = {
+            "latitude": lat,
+            "longitude": lon,
+            "current": "temperature_2m,relative_humidity_2m,precipitation,rain,showers,wind_speed_10m",
+            "hourly": "rain",
+            "forecast_days": 1,
+            "timezone": "Asia/Kolkata",
+        }
+
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            try:
+                resp = await client.get(_OPENMETEO_CURRENT, params=params)
+                resp.raise_for_status()
+                data = resp.json()
+            except (httpx.HTTPError, ValueError) as exc:
+                _logger.error("Open-Meteo error: %s", exc)
+                return defaults
+
+        # Current conditions
+        current = data.get("current", {})
+        temp = float(current.get("temperature_2m", 0))
+        humidity = float(current.get("relative_humidity_2m", 0))
+        precip = float(current.get("precipitation", 0))
+        rain = float(current.get("rain", 0))
+        showers = float(current.get("showers", 0))
+        wind_speed = float(current.get("wind_speed_10m", 0))
+
+        # 24-hour rainfall sum from hourly data
+        rain_24h = self._calculate_24h_rainfall(data)
+
+        _logger.info(
+            "Weather — temp=%.1f°C  humidity=%.0f%%  rain=%.2fmm  "
+            "wind=%.1fkm/h  rain_24h=%.1fmm",
+            temp, humidity, rain, wind_speed, rain_24h,
+        )
+
+        return {
+            "temp": round(temp, 1),
+            "humidity": round(humidity, 1),
+            "precip": round(precip + showers, 2),
+            "rain": round(rain, 2),
+            "wind_speed": round(wind_speed, 1),
+            "rain_24h": round(rain_24h, 1),
+        }
+
+    @staticmethod
+    def _calculate_24h_rainfall(data: Dict[str, Any]) -> float:
+        """Sum hourly rain values over the 24-hour forecast window."""
+        hourly = data.get("hourly", {})
+        rain_values = hourly.get("rain", [])
+        if not rain_values:
+            return 0.0
+        return round(float(sum(rain_values)), 1)
