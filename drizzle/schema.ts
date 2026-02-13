@@ -96,6 +96,7 @@ export const orders = pgTable("orders", {
 	price: text().notNull(),
 	farmerId: text("farmer_id").notNull(),
 	productId: uuid("product_id").notNull(),
+	status: text().default('pending').notNull(),
 }, (table) => [
 	foreignKey({
 			columns: [table.buyerId],
