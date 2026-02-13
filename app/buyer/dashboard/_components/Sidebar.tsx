@@ -10,7 +10,8 @@ import {
   Settings,
   TrendingUp,
 } from "lucide-react";
-import { useState } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
@@ -25,19 +26,26 @@ const navItems = [
 ];
 
 export function Sidebar() {
-  const [activeItem, setActiveItem] = useState("Dashboard");
+  const pathname = usePathname() || "/";
+  const [hovered, setHovered] = useState<string | null>(null);
+  useEffect(() => {
+    setHovered(null);
+  }, [pathname]);
 
   return (
     <aside className="glass-card sticky top-16 hidden h-[calc(100vh-4rem)] w-64 flex-col justify-between overflow-y-auto p-4 lg:flex">
       <nav className="flex flex-col gap-1.5">
         {navItems.map(({ icon: Icon, label, badge, route }) => {
-          const isActive = activeItem === label;
+          const isActive = hovered === label || pathname === route;
 
           return (
             <Link
               key={label}
               href={route}
-              onClick={() => setActiveItem(label)}
+              onMouseEnter={() => setHovered(label)}
+              onMouseLeave={() => setHovered(null)}
+              onFocus={() => setHovered(label)}
+              onBlur={() => setHovered(null)}
               className={cn(
                 "group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200",
                 isActive
@@ -47,7 +55,7 @@ export function Sidebar() {
             >
               <Icon
                 className={cn(
-                  "h-\[18px] w-\[18px] transition-transform duration-200 group-hover:scale-110",
+                  "h-\\[18px] w-\\[18px] transition-transform duration-200 group-hover:scale-110",
                   isActive ? "text-white" : "text-[#7ca87c]"
                 )}
               />
