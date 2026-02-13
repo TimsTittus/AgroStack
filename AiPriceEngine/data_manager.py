@@ -2,14 +2,18 @@
 data_manager.py — AgroStack Data Preprocessing Pipeline
 ========================================================
 Handles CSV ingestion (Agmarknet / Data.gov.in format), synthetic demo-data
-generation, Min-Max scaling, and sliding-window sequence creation for the
-LSTM shock model.
+generation, **live Kerala mandi price fetching**, Min-Max scaling, and
+sliding-window sequence creation for the LSTM shock model.
 """
 
 from __future__ import annotations
 
 import datetime as dt
-from typing import Tuple, Optional
+import logging
+import os
+from typing import Any, Dict, List, Tuple, Optional
+
+import httpx
 
 import numpy as np
 import pandas as pd
@@ -244,3 +248,135 @@ def prepare_prophet_df(df: pd.DataFrame) -> pd.DataFrame:
     out.reset_index(drop=True, inplace=True)
 
     return out
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 6. Live Kerala Mandi Prices — Data.gov.in
+# ─────────────────────────────────────────────────────────────────────
+
+_MANDI_RESOURCE = (
+    "https://api.data.gov.in/resource/"
+    "9ef84268-d588-465a-a308-a864a43d0070"
+)
+
+_logger = logging.getLogger("agrostack.data_manager")
+
+
+class LivePriceInformer:
+    """Async fetcher for Kerala mandi prices from Data.gov.in.
+
+    Usage
+    -----
+    >>> informer = LivePriceInformer()
+    >>> result = await informer.fetch("rubber")
+    >>> result["avg_modal"]
+    17200.0
+
+    The fetcher hardcodes ``filters[state.keyword]=Kerala`` and title-cases
+    the commodity name to match Agmarknet conventions.
+    """
+
+    def __init__(self, timeout: float = 30.0) -> None:
+        self.timeout = timeout
+
+    async def fetch(self, crop_id: str, limit: int = 100) -> Dict[str, Any]:
+        """Fetch live Kerala mandi records for *crop_id*.
+
+        Parameters
+        ----------
+        crop_id : str
+            Crop identifier, e.g. ``"rubber"``, ``"coconut"``.
+        limit : int
+            Maximum number of API records to request.
+
+        Returns
+        -------
+        Dict[str, Any]
+            ``avg_modal``   — mean modal_price across Kerala records.
+            ``min_price``   — lowest min_price seen.
+            ``max_price``   — highest max_price seen.
+            ``record_count``— number of records returned.
+            ``markets``     — unique market names.
+            ``districts``   — unique Kerala districts.
+            ``records``     — list of cleaned record dicts.
+        """
+        empty: Dict[str, Any] = {
+            "avg_modal": 0.0,
+            "min_price": 0.0,
+            "max_price": 0.0,
+            "record_count": 0,
+            "markets": [],
+            "districts": [],
+            "records": [],
+        }
+
+        api_key = os.getenv("DATA_GOV_API_KEY", "")
+        if not api_key:
+            _logger.warning("DATA_GOV_API_KEY not set — skipping live fetch.")
+            return empty
+
+        commodity = crop_id.strip().title()
+
+        params = {
+            "api-key": api_key,
+            "format": "json",
+            "filters[state.keyword]": "Kerala",
+            "filters[commodity]": commodity,
+            "limit": limit,
+        }
+
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            try:
+                resp = await client.get(_MANDI_RESOURCE, params=params)
+                resp.raise_for_status()
+                data = resp.json()
+            except (httpx.HTTPError, ValueError) as exc:
+                _logger.error("Mandi API error: %s", exc)
+                return empty
+
+        raw_records = data.get("records", [])
+        if not raw_records:
+            _logger.info("No Kerala records for '%s'.", commodity)
+            return empty
+
+        # Clean and extract pricing fields
+        records: List[Dict[str, Any]] = []
+        for rec in raw_records:
+            try:
+                records.append({
+                    "state": rec.get("state", ""),
+                    "district": rec.get("district", ""),
+                    "market": rec.get("market", ""),
+                    "commodity": rec.get("commodity", ""),
+                    "variety": rec.get("variety", ""),
+                    "arrival_date": rec.get("arrival_date", ""),
+                    "min_price": float(rec.get("min_price", 0)),
+                    "max_price": float(rec.get("max_price", 0)),
+                    "modal_price": float(rec.get("modal_price", 0)),
+                })
+            except (TypeError, ValueError):
+                continue
+
+        if not records:
+            return empty
+
+        modal_prices = [r["modal_price"] for r in records]
+        min_prices = [r["min_price"] for r in records]
+        max_prices = [r["max_price"] for r in records]
+        markets = sorted({r["market"] for r in records if r.get("market")})
+        districts = sorted({r["district"] for r in records if r.get("district")})
+
+        _logger.info(
+            "Fetched %d Kerala records for '%s' (avg ₹%.2f).",
+            len(records), commodity, float(np.mean(modal_prices)),
+        )
+
+        return {
+            "avg_modal": round(float(np.mean(modal_prices)), 2),
+            "min_price": round(float(min(min_prices)), 2),
+            "max_price": round(float(max(max_prices)), 2),
+            "record_count": len(records),
+            "markets": markets,
+            "districts": districts,
+            "records": records,
+        }

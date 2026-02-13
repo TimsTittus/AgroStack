@@ -302,7 +302,84 @@ class HybridPredictor:
 
         self._trained = True
 
-    # Prediction
+    # Live-price prediction
+
+    def predict_hybrid(
+        self,
+        crop_id: str,
+        current_price: float,
+    ) -> Dict[str, Any]:
+        """Produce a 30-day forecast anchored to a *live* current price.
+
+        The formula uses Prophet/LSTM as multipliers on the live base:
+
+            predicted = current_price × (prophet_mult × 0.7 + lstm_mult × 0.3)
+
+        Parameters
+        ----------
+        crop_id : str
+            Crop identifier (e.g. ``"rubber"``).
+        current_price : float
+            Live Kerala avg modal price from ``LivePriceInformer``.
+
+        Returns
+        -------
+        Dict[str, Any]
+        """
+        if not self._trained or self.data is None:
+            raise RuntimeError("HybridPredictor has not been trained.")
+
+        crop_name = _DEFAULT_CROPS.get(crop_id, crop_id.title())
+        last_known = float(self.data["y"].iloc[-1])
+
+        # Prophet trend
+        try:
+            prophet_trend = self.seasonality.get_trend_value(periods=30)
+        except Exception:
+            prophet_trend = last_known
+
+        # LSTM correction
+        try:
+            recent = self.data["y"].values[-self.shock.window:]
+            lstm_correction = self.shock.get_correction(recent)
+        except Exception:
+            lstm_correction = last_known
+
+        # Multipliers relative to training baseline
+        if last_known > 0:
+            prophet_mult = prophet_trend / last_known
+            lstm_mult = lstm_correction / last_known
+        else:
+            prophet_mult = 1.0
+            lstm_mult = 1.0
+
+        predicted_price = round(
+            current_price * (
+                prophet_mult * PROPHET_WEIGHT + lstm_mult * LSTM_WEIGHT
+            ), 2
+        )
+
+        # XAI
+        xai = self._generate_xai_attribution(
+            prophet_price=prophet_trend,
+            lstm_price=lstm_correction,
+        )
+
+        return {
+            "crop_id": crop_id,
+            "crop_name": crop_name,
+            "current_price": round(current_price, 2),
+            "predicted_price": predicted_price,
+            "prophet_trend": round(prophet_trend, 2),
+            "prophet_multiplier": round(prophet_mult, 4),
+            "lstm_correction": round(lstm_correction, 2),
+            "lstm_multiplier": round(lstm_mult, 4),
+            "prophet_weight": PROPHET_WEIGHT,
+            "lstm_weight": LSTM_WEIGHT,
+            "last_known_training_price": round(last_known, 2),
+            **xai,
+        }
+
 
     def get_prediction(self, crop_id: str = "wheat") -> Dict[str, Any]:
         """Return a hybrid price prediction for *crop_id*.
