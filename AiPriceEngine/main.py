@@ -155,6 +155,8 @@ async def predict(crop_id: str):
     | `hybrid_price`     | Fused price (Prophet × 0.7 + LSTM × 0.3)     |
     | `prophet_trend`    | Prophet 12-month seasonality forecast         |
     | `lstm_correction`  | LSTM 30-day volatility correction             |
+    | `insights`         | Natural-language explanation of the prediction|
+    | `attribution`      | XAI dict (weights, shock factor, anomaly)     |
     | `digital_signature`| RSA-PSS signature (hex) over the payload      |
     | `timestamp`        | ISO-8601 prediction timestamp                 |
     """

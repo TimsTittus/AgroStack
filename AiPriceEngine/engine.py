@@ -18,8 +18,9 @@ HybridPredictor   — Orchestrator that trains both sub-models and exposes
 from __future__ import annotations
 
 import logging
+import math
 import warnings
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -350,6 +351,12 @@ class HybridPredictor:
             prophet_trend * PROPHET_WEIGHT + lstm_correction * LSTM_WEIGHT, 2
         )
 
+        # --- XAI: Explainable AI attribution ---
+        xai = self._generate_xai_attribution(
+            prophet_price=prophet_trend,
+            lstm_price=lstm_correction,
+        )
+
         return {
             "crop_id": crop_id,
             "crop_name": crop_name,
@@ -359,6 +366,89 @@ class HybridPredictor:
             "prophet_weight": PROPHET_WEIGHT,
             "lstm_weight": LSTM_WEIGHT,
             "last_known_price": round(last_known, 2),
+            **xai,
+        }
+
+    # XAI — Heuristic Feature Attribution
+
+    def _generate_xai_attribution(
+        self,
+        prophet_price: float,
+        lstm_price: float,
+    ) -> Dict[str, Any]:
+        """Compute explainability metadata for the current prediction.
+
+        Returns
+        -------
+        Dict[str, Any]
+            ``insights`` — natural-language explanation string.
+            ``attribution`` — structured dict with weights, shock factor,
+            seasonal contribution, and detected anomaly label.
+        """
+        # 1. Shock influence
+        if prophet_price != 0:
+            shock_factor = round(
+                abs(lstm_price - prophet_price) / abs(prophet_price), 4
+            )
+        else:
+            shock_factor = 0.0
+
+        seasonal_contribution = round(1.0 - shock_factor, 4)
+
+        # 2. Anomaly detection (rainfall & demand)
+        anomalies: List[str] = []
+        insight_parts: List[str] = []
+
+        if self.data is not None and "rainfall" in self.data.columns:
+            rainfall_mean = float(self.data["rainfall"].mean())
+            recent_rainfall = float(self.data["rainfall"].iloc[-1])
+            if rainfall_mean > 0 and recent_rainfall < 0.80 * rainfall_mean:
+                deficit_pct = round(
+                    (1 - recent_rainfall / rainfall_mean) * 100, 1
+                )
+                anomalies.append("Low Precipitation")
+                insight_parts.append(f"{deficit_pct}% rainfall deficit")
+
+        if self.data is not None and "demand" in self.data.columns:
+            demand_mean = float(self.data["demand"].mean())
+            recent_demand = float(self.data["demand"].iloc[-1])
+            if demand_mean > 0 and recent_demand > 1.20 * demand_mean:
+                anomalies.append("High Demand Volatility")
+                insight_parts.append("high demand volatility")
+
+        anomaly_label = ", ".join(anomalies) if anomalies else "None"
+
+        # 3. Natural-language insight
+        if insight_parts:
+            direction = "increase" if lstm_price >= prophet_price else "decrease"
+            insight = (
+                f"Price {direction} driven by "
+                + " and ".join(insight_parts)
+                + "."
+            )
+        elif shock_factor > 0.15:
+            direction = "increase" if lstm_price >= prophet_price else "decrease"
+            insight = (
+                f"Significant short-term price {direction} detected "
+                f"(shock factor {shock_factor:.1%}). "
+                f"No single input anomaly identified; "
+                f"likely a combination of minor market shifts."
+            )
+        else:
+            insight = (
+                "Price is within normal seasonal expectations. "
+                "No significant anomalies detected."
+            )
+
+        return {
+            "insights": insight,
+            "attribution": {
+                "prophet_weight": PROPHET_WEIGHT,
+                "lstm_weight": LSTM_WEIGHT,
+                "shock_factor": shock_factor,
+                "seasonal_contribution": seasonal_contribution,
+                "anomaly_detected": anomaly_label,
+            },
         }
 
     # Analytics
