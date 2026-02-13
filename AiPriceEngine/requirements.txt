@@ -1,0 +1,15 @@
+# AgroStack — Hybrid AI Price Engine
+# Core dependencies
+
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# ML / Data Science
+prophet>=1.1.5
+tensorflow>=2.14.0
+pandas>=2.1.0
+numpy>=1.24.0
+scikit-learn>=1.3.0
+
+# Security (RSA digital signatures)
+cryptography>=41.0.0
