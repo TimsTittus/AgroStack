@@ -10,31 +10,42 @@ import {
   Settings,
   TrendingUp,
 } from "lucide-react";
-import { useState } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard", active: true },
-  { icon: ShoppingBag, label: "Browse Products", badge: "New" },
-  { icon: Package, label: "Orders", badge: "5" },
-  { icon: MessageCircle, label: "Messages", badge: "2" },
-  { icon: Heart, label: "Wishlist" },
-  { icon: CreditCard, label: "Payments" },
-  { icon: Settings, label: "Settings" },
+  { icon: LayoutDashboard, label: "Dashboard", route: "/buyer/dashboard" },
+  { icon: ShoppingBag, label: "Browse Products", badge: "New", route: "/buyer/dashboard/products" },
+  { icon: Package, label: "Orders", badge: "5", route: "/buyer/dashboard/orders" },
+  { icon: MessageCircle, label: "Messages", badge: "2", route: "/buyer/dashboard/messages" },
+  { icon: Heart, label: "Wishlist", route: "/buyer/dashboard/wishlist" },
+  { icon: CreditCard, label: "Payments", route: "/buyer/dashboard/payments" },
+  { icon: Settings, label: "Settings", route: "/buyer/dashboard/settings" },
 ];
 
 export function Sidebar() {
-  const [activeItem, setActiveItem] = useState("Dashboard");
+  const pathname = usePathname() || "/";
+  const [hovered, setHovered] = useState<string | null>(null);
+  useEffect(() => {
+    setHovered(null);
+  }, [pathname]);
 
   return (
     <aside className="glass-card sticky top-16 hidden h-[calc(100vh-4rem)] w-64 flex-col justify-between overflow-y-auto p-4 lg:flex">
       <nav className="flex flex-col gap-1.5">
-        {navItems.map((item) => {
-          const isActive = activeItem === item.label;
+        {navItems.map(({ icon: Icon, label, badge, route }) => {
+          const isActive = hovered === label || pathname === route;
+
           return (
-            <button
-              key={item.label}
-              onClick={() => setActiveItem(item.label)}
+            <Link
+              key={label}
+              href={route}
+              onMouseEnter={() => setHovered(label)}
+              onMouseLeave={() => setHovered(null)}
+              onFocus={() => setHovered(label)}
+              onBlur={() => setHovered(null)}
               className={cn(
                 "group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200",
                 isActive
@@ -42,14 +53,14 @@ export function Sidebar() {
                   : "text-[#5c7a5c] hover:bg-[#e8f0e4] hover:text-[#1a2e1a]"
               )}
             >
-              <item.icon
+              <Icon
                 className={cn(
-                  "h-\[18px] w-\[18px] transition-transform duration-200 group-hover:scale-110",
+                  "h-\\[18px] w-\\[18px] transition-transform duration-200 group-hover:scale-110",
                   isActive ? "text-white" : "text-[#7ca87c]"
                 )}
               />
-              <span className="flex-1 text-left">{item.label}</span>
-              {item.badge && (
+              <span className="flex-1">{label}</span>
+              {badge && (
                 <span
                   className={cn(
                     "flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
@@ -58,13 +69,14 @@ export function Sidebar() {
                       : "bg-[#2d6a4f]/10 text-[#2d6a4f]"
                   )}
                 >
-                  {item.badge}
+                  {badge}
                 </span>
               )}
-            </button>
+            </Link>
           );
         })}
       </nav>
+
       <div className="mt-4 rounded-2xl bg-linear-to-br from-[#d8f3dc] to-[#b7e4c7] p-4">
         <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-[#2d6a4f]/15">
           <TrendingUp className="h-4 w-4 text-[#2d6a4f]" />

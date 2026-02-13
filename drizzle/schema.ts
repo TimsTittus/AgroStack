@@ -1,20 +1,6 @@
 import { pgTable, index, text, timestamp, unique, boolean, foreignKey, uuid } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
-export const user = pgTable("user", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  role: text("role").notNull(),
-  phone: text("phone").notNull(),
-  email: text("email").notNull().unique(),
-  emailVerified: boolean("email_verified").default(false).notNull(),
-  image: text("image"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at")
-    .defaultNow()
-    .$onUpdate(() => /* @__PURE__ */ new Date())
-    .notNull(),
-});
 
 
 export const verification = pgTable("verification", {
@@ -84,19 +70,5 @@ export const session = pgTable("session", {
 	unique("session_token_unique").on(table.token),
 ]);
 
-export const products = pgTable("products", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-	name: text().notNull(),
-	price: text().notNull(),
-	quantity: text().notNull(),
-	userid: text().notNull(),
-	description: text(),
-	image: text().notNull(),
-}, (table) => [
-	foreignKey({
-			columns: [table.userid],
-			foreignColumns: [user.id],
-			name: "products_userid_fkey"
-		}),
-]);
+
+
