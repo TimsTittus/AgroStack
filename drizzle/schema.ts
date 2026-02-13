@@ -70,5 +70,19 @@ export const session = pgTable("session", {
 	unique("session_token_unique").on(table.token),
 ]);
 
-
-
+export const products = pgTable("products", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	name: text().notNull(),
+	price: text().notNull(),
+	quantity: text().notNull(),
+	userid: text().notNull(),
+	description: text(),
+	image: text().notNull(),
+}, (table) => [
+	foreignKey({
+			columns: [table.userid],
+			foreignColumns: [user.id],
+			name: "products_userid_fkey"
+		}),
+]);

@@ -1,20 +1,6 @@
 import { pgTable, index, text, timestamp, unique, boolean, foreignKey, uuid } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
-export const user = pgTable("user", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  role: text("role").notNull(),
-  phone: text("phone").notNull(),
-  email: text("email").notNull().unique(),
-  emailVerified: boolean("email_verified").default(false).notNull(),
-  image: text("image"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at")
-    .defaultNow()
-    .$onUpdate(() => /* @__PURE__ */ new Date())
-    .notNull(),
-});
 
 
 export const verification = pgTable("verification", {
