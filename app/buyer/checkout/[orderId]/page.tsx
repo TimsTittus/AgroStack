@@ -15,11 +15,12 @@ export default function CheckoutPage() {
     const orderMessgae = trpc.order.orderMessage.useMutation();
     const completeOrder = trpc.order.completeOrder.useMutation({
         onSuccess: () => {
-            orderMessgae.mutate({orderId})
+            
             router.push(`/buyer/checkout/confirm/${orderId}`);
         },
     });
     const handleConfirm = () => {
+        orderMessgae.mutate({orderId})
         completeOrder.mutate({ orderId });
     };
 

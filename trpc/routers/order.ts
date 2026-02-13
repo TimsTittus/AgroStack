@@ -5,6 +5,8 @@ import { transporter } from "@/lib/mailer";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import client from "@/lib/twilio";
+import { render } from "@react-email/render";
+import OrderConfirmEmail from "@/components/email/orderMail";
 export const orderRouter = createTRPCRouter({
     setOrder: protectedProcedure
         .input(
@@ -88,13 +90,14 @@ export const orderRouter = createTRPCRouter({
 
             const userId = ctx.auth.user.id;
             const farmerId = await db
-                .select({farmerId: orders.farmerId})
+                .select({ farmerId: orders.farmerId })
                 .from(orders)
-                .where(eq(orders.id,input.orderId));
+                .where(eq(orders.id, input.orderId));
             const userContact = await db
                 .select({
                     email: user.email,
                     phone: user.phone,
+                    name: user.name
                 })
                 .from(user)
                 .where(eq(user.id, userId))
@@ -115,15 +118,23 @@ export const orderRouter = createTRPCRouter({
 
             const buyer = userContact[0];
             const farmer = farmerContact[0];
+            const html = await render(
+                OrderConfirmEmail({
+                    buyerName: buyer.name,
+                    buyerEmail: buyer.email,
+                    orderId: input.orderId,
+                })
+            );
+
             await transporter.sendMail({
                 to: farmer.email,
-                subject: "New Order Request",
-                text: `You received a new order request from ${buyer.email}`,
+                subject: "New Order Received - AgroStack",
+                html,
             });
             await client.messages.create({
-                body: "You have a new order request",
+                body: `${buyer.name} (${buyer.email}) ൽ നിന്ന് നിങ്ങൾക്ക് ഒരു പുതിയ ഓർഡർ അഭ്യർത്ഥന ലഭിച്ചു. AgroStack ഡാഷ്‌ബോർഡ് പരിശോധിക്കുക.`,
                 from: process.env.TWILIO_PHONE,
-                to: farmer.phone,
+                to: `+91${farmer.phone}`,
             });
 
             console.log("Send email to:", farmer.email);
