@@ -1,7 +1,9 @@
 import { createTRPCRouter, protectedProcedure } from "../init";
 import { db } from "@/db";
 import { listings } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
+import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 
 export const listingsRouter = createTRPCRouter({
   getAllListings: protectedProcedure.query(async () => {
@@ -9,7 +11,57 @@ export const listingsRouter = createTRPCRouter({
     return data;
   }),
   getFarmerListings: protectedProcedure.query(async ({ ctx }) => {
-    const data = await db.select().from(listings).where(eq(listings.userid, ctx.auth?.user?.id as string)).orderBy(listings.createdAt);
+    const data = await db
+      .select()
+      .from(listings)
+      .where(eq(listings.userid, ctx.auth?.user?.id as string))
+      .orderBy(listings.createdAt);
     return data;
   }),
+  addListing: protectedProcedure
+    .input(
+      z.object({
+        name: z.string().min(1, "Name is required"),
+        price: z.string().min(1, "Price is required"),
+        quantity: z.string().min(1, "Quantity is required"),
+        description: z.string().optional(),
+        image: z.string().min(1, "Image URL is required"),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const userId = ctx.auth?.user?.id as string;
+
+      const inserted = await db
+        .insert(listings)
+        .values({
+          name: input.name,
+          price: input.price,
+          quantity: input.quantity,
+          description: input.description ?? null,
+          image: input.image,
+          userid: userId,
+        })
+        .returning({ id: listings.id });
+
+      return inserted[0]?.id ?? null;
+    }),
+  deleteListing: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ input, ctx }) => {
+      const userId = ctx.auth?.user?.id as string;
+
+      const deleted = await db
+        .delete(listings)
+        .where(and(eq(listings.id, input.id), eq(listings.userid, userId)))
+        .returning({ id: listings.id });
+
+      if (!deleted.length) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Listing not found or you don't have permission to delete it.",
+        });
+      }
+
+      return { success: true };
+    }),
 });

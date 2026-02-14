@@ -5,6 +5,7 @@ import * as schema from "@/db/schema";
 
 export const auth = betterAuth({
   trustedOrigins: ["*"],
+  baseURL: process.env.BETTER_AUTH_BASE_URL,
   advanced: {
     cookiePrefix: "agroo",
   },
@@ -19,25 +20,26 @@ export const auth = betterAuth({
   autoSignInAfterVerification: true,
   expiresIn: 3600,
   user: {
-        additionalFields: {
-            role: {
-                type: 'string',
-                required: true, 
-                defaultValue: null,
-                input: true 
-            },
-            phone: {
-                type: 'string',
-                required: true,
-                defaultValue: null,
-                input: true 
-            },
-            wallet: {
-              type: 'string',
-              required: false,
-              defaultValue: 0,
-              input: true
-            }
-        }
+    additionalFields: {
+      role: {
+        type: 'string',
+        required: true,
+        defaultValue: null,
+        input: true
+      },
+      phone: {
+        type: 'string',
+        required: true,
+        defaultValue: null,
+        input: true
+      },
+      wallet: {
+        type: 'string',
+        required: false,
+        defaultValue: 0,
+        input: true
+      }
     }
-});
+  }
+}
+);

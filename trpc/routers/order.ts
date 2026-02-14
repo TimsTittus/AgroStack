@@ -1,8 +1,8 @@
 import { createTRPCRouter, protectedProcedure } from "../init";
 import { db } from "@/db";
-import { orders, user } from "@/db/schema";
+import { orders, user, listings } from "@/db/schema";
 import { transporter } from "@/lib/mailer";
-import { eq, and,desc } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { z } from "zod";
 import client from "@/lib/twilio";
 import { render } from "@react-email/render";
@@ -155,20 +155,42 @@ export const orderRouter = createTRPCRouter({
 
         return result;
     }),
+    getRecentOrders: protectedProcedure.query(async ({ ctx }) => {
+        if (!ctx.auth) throw new Error("Unauthorized");
 
-getRecentOrders: protectedProcedure.query(async ({ ctx }) => {
-  if (!ctx.auth) throw new Error("Unauthorized");
+        const userId = ctx.auth.user.id;
 
-  const userId = ctx.auth.user.id;
-  
-  const ordersData = await db
-    .select()
-    .from(orders)
-    .where(eq(orders.buyerId, userId))
-    .orderBy(desc(orders.createdAt))
-    .limit(4);
-  return ordersData;
-}),
+        const ordersData = await db
+            .select()
+            .from(orders)
+            .where(eq(orders.buyerId, userId))
+            .orderBy(desc(orders.createdAt))
+            .limit(4);
+        return ordersData;
+    }),
+    getFarmerOrders: protectedProcedure.query(async ({ ctx }) => {
+        if (!ctx.auth) throw new Error("Unauthorized");
+        const userId = ctx.auth.user.id;
 
+        const result = await db
+            .select({
+                id: orders.id,
+                name: orders.name,
+                quantity: orders.quantity,
+                price: orders.price,
+                status: orders.status,
+                createdAt: orders.createdAt,
+                productId: orders.productId,
+                buyerName: user.name,
+                buyerEmail: user.email,
+                productImage: listings.image,
+            })
+            .from(orders)
+            .innerJoin(user, eq(orders.buyerId, user.id))
+            .innerJoin(listings, eq(orders.productId, listings.id))
+            .where(eq(orders.farmerId, userId))
+            .orderBy(orders.createdAt);
 
+        return result;
+    }),
 });
