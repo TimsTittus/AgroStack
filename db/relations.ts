@@ -36,15 +36,16 @@ export const listingsRelations = relations(listings, ({ one, many }) => ({
 }));
 
 export const ordersRelations = relations(orders, ({ one }) => ({
-  buyer: one(user, {
-    fields: [orders.buyerId],
-    references: [user.id],
-  }),
-
-  farmer: one(user, {
-    fields: [orders.farmerId],
-    references: [user.id],
-  }),
+	user_buyerId: one(user, {
+		fields: [orders.buyerId],
+		references: [user.id],
+		relationName: "orders_buyerId_user_id"
+	}),
+	user_farmerId: one(user, {
+		fields: [orders.farmerId],
+		references: [user.id],
+		relationName: "orders_farmerId_user_id"
+	}),
 	product: one(listings, {
 		fields: [orders.productId],
 		references: [listings.id]
