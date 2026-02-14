@@ -23,9 +23,9 @@ export default function DashboardPage() {
             </motion.div>
             <SummaryCards />
 
-            {/* <div className="mt-6">
+            <div className="mt-6">
               <FeaturedProducts />
-            </div> */}
+            </div>
             <div className="mt-8">
               <RecentOrders />
             </div>
