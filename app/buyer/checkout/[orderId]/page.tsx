@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, redirect } from "next/navigation";
 import { trpc } from "@/trpc/client";
 import { motion } from "framer-motion";
 import {
@@ -24,7 +24,8 @@ export default function CheckoutPage() {
     const orderMessgae = trpc.order.orderMessage.useMutation();
 
     const handleConfirm = () => {
-        orderMessgae.mutate({ orderId })
+        orderMessgae.mutate({ orderId });
+        redirect(`/buyer/dashboard/orders`);
     };
 
     if (isLoading) return <CheckoutSkeleton />;
@@ -111,10 +112,10 @@ export default function CheckoutPage() {
                     {/* Action Button */}
                     <button
                         onClick={handleConfirm}
-                        disabled={completeOrder.isPending}
+                        disabled={orderMessgae.isPending}
                         className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-[#1b4332] py-4 text-sm font-black text-white shadow-xl shadow-[#1b4332]/20 transition-all hover:bg-[#2d6a4f] active:scale-[0.98] disabled:opacity-70"
                     >
-                        {completeOrder.isPending ? (
+                        {orderMessgae.isPending ? (
                             <Loader2 className="h-5 w-5 animate-spin" />
                         ) : (
                             <>
