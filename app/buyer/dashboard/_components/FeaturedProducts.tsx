@@ -1,13 +1,21 @@
 "use client";
 
-import { MapPin, MessageCircle, ShoppingCart, Leaf, Package } from "lucide-react";
+import { MapPin, MessageCircle, ShoppingCart, Leaf } from "lucide-react";
 import { motion } from "framer-motion";
 import { trpc } from "@/trpc/client";
+import { useRouter } from "next/navigation"; // 1. Import useRouter
 
 export function FeaturedProducts() {
+  const router = useRouter(); // 2. Initialize router
   const { data: products, isLoading } = trpc.listings.getAllListings.useQuery();
 
   if (isLoading) return <FeaturedProductsSkeleton />;
+
+  // 3. Simple handle click function
+  const handleBuyRedirect = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevents card click events if added later
+    router.push("/buyer/dashboard/products");
+  };
 
   return (
     <section>
@@ -22,7 +30,10 @@ export function FeaturedProducts() {
           <p className="text-xs text-[#5c7a5c]">Fresh picks from local farmers</p>
         </div>
 
-        <button className="rounded-full border border-[#d4e7d0] bg-white px-3 py-1.5 text-[10px] font-bold text-[#2d6a4f] transition-all duration-300 hover:bg-[#2d6a4f] hover:text-white active:scale-95">
+        <button 
+          onClick={() => router.push("/buyer/dashboard/products")}
+          className="rounded-full border border-[#d4e7d0] bg-white px-3 py-1.5 text-[10px] font-bold text-[#2d6a4f] transition-all duration-300 hover:bg-[#2d6a4f] hover:text-white active:scale-95"
+        >
           View All
         </button>
       </div>
@@ -67,7 +78,10 @@ export function FeaturedProducts() {
                   <span className="text-[9px] font-bold text-[#7ca87c]">/unit</span>
                 </div>
 
-                <button className="flex h-8 items-center gap-1.5 rounded-lg bg-[#2d6a4f] px-3 text-[10px] font-bold text-white transition-all duration-200 hover:bg-[#1b4332] active:scale-95">
+                <button 
+                  onClick={handleBuyRedirect} // 4. Attach handler
+                  className="flex h-8 items-center gap-1.5 rounded-lg bg-[#2d6a4f] px-3 text-[10px] font-bold text-white transition-all duration-200 hover:bg-[#1b4332] active:scale-95"
+                >
                   <ShoppingCart className="h-3 w-3" />
                   Buy
                 </button>

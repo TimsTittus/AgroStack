@@ -1,7 +1,7 @@
 import { createTRPCRouter, protectedProcedure } from "../init";
 import { db } from "@/db";
 import { user,orders } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql,and } from "drizzle-orm";
 import z from "zod";
 
 export const userRouter = createTRPCRouter({
@@ -52,4 +52,24 @@ export const userRouter = createTRPCRouter({
 
   return wallet ?? null;
 }),
+getFarmerSummary: protectedProcedure.query(async ({ ctx }) => {
+  if (!ctx.auth) throw new Error("unauthorized");
+  const userId = ctx.auth.user.id;
+
+  const revenue = await db
+    .select({ total: sql<number>`coalesce(sum(${orders.price}::numeric), 0)` })
+    .from(orders)
+    .where(and(eq(orders.farmerId, userId), eq(orders.status, 'completed')));
+
+  const pending = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(orders)
+    .where(and(eq(orders.farmerId, userId), eq(orders.status, 'pending')));
+
+  return {
+    totalRevenue: revenue[0]?.total ?? 0,
+    pendingOrders: pending[0]?.count ?? 0,
+    activeListings: 0, 
+  };
+})
 });
