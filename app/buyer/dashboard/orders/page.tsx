@@ -1,7 +1,7 @@
 "use client";
 
 import { trpc } from "@/trpc/client";
-import { Package, IndianRupee, ShoppingBag } from "lucide-react"; 
+import { Package, IndianRupee, ShoppingBag } from "lucide-react";
 export default function OrdersPage() {
   const { data: orders, isLoading, error } = trpc.order.getMyOrders.useQuery();
 
@@ -92,6 +92,8 @@ function StatusBadge({ status }: { status: string }) {
     confirmed: "bg-blue-100 text-blue-700 border-blue-200",
     shipped: "bg-indigo-100 text-indigo-700 border-indigo-200",
     delivered: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    completed: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    cancelled: "bg-red-100 text-red-700 border-red-200",
   };
 
   return (
