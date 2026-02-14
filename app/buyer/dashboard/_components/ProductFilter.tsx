@@ -2,7 +2,7 @@
 
 import { Filter, ChevronDown } from "lucide-react";
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 
 const categories = ["All", "Vegetables", "Fruits", "Grains", "Dairy", "Organic"];
 const locations = ["All Locations", "California", "Iowa", "Vermont", "Texas"];

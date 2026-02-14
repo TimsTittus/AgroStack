@@ -17,6 +17,7 @@ export const verification = pgTable("verification", {
 export const user = pgTable("user", {
 	id: text().primaryKey().notNull(),
 	name: text().notNull(),
+	wallet: text().default("0").notNull(),
 	email: text().notNull(),
 	emailVerified: boolean("email_verified").default(false).notNull(),
 	image: text(),

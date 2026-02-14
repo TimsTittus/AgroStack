@@ -1,7 +1,7 @@
 import { createTRPCRouter, protectedProcedure } from "../init";
 import { db } from "@/db";
-import { user } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { user,orders } from "@/db/schema";
+import { eq, sql } from "drizzle-orm";
 import z from "zod";
 
 export const userRouter = createTRPCRouter({
@@ -15,4 +15,41 @@ export const userRouter = createTRPCRouter({
 
       return data[0] ?? null;
     }),
+    getSummary: protectedProcedure.query(async ({ ctx }) => {
+      if(!ctx.auth) throw new Error("unauthorized");
+    const userId = ctx.auth.user.id;
+    const activeOrdersResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(orders)
+      .where(eq(orders.buyerId, userId));
+    const pendingResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(orders)
+      .where(
+        sql`${orders.buyerId} = ${userId} AND ${orders.status} = 'pending'`
+      );
+    const totalPurchasesResult = await db
+      .select({
+        total: sql<number>`coalesce(sum(${orders.price}::numeric), 0)`
+      })
+      .from(orders)
+      .where(eq(orders.buyerId, userId));
+
+    return {
+      activeOrders: activeOrdersResult[0]?.count ?? 0,
+      pendingDeliveries: pendingResult[0]?.count ?? 0,
+      totalPurchases: totalPurchasesResult[0]?.total ?? 0,
+      messages: 0,
+    };
+  }),
+  getWalletInfo: protectedProcedure.query(async ({ ctx }) => {
+  if (!ctx.auth) throw new Error("Unauthorized");
+
+  const [wallet] = await db
+    .select({ walletBalance: user.wallet })
+    .from(user)
+    .where(eq(user.id, ctx.auth.user.id));
+
+  return wallet ?? null;
+});
 });
