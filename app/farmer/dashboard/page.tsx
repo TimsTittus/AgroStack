@@ -1,8 +1,8 @@
 import React from 'react'
-
+import FarmerOverview from './overview/page'
 function page() {
   return (
-    <div>page</div>
+    <FarmerOverview />
   )
 }
 

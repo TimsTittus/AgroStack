@@ -19,10 +19,8 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", route: "/buyer/dashboard" },
-  { icon: ShoppingBag, label: "Browse Products", badge: "New", route: "/buyer/dashboard/products" },
+  { icon: ShoppingBag, label: "Products", badge: "New", route: "/buyer/dashboard/products" },
   { icon: Package, label: "Orders", badge: "5", route: "/buyer/dashboard/orders" },
-  { icon: MessageCircle, label: "Messages", badge: "2", route: "/buyer/dashboard/messages" },
-  { icon: Heart, label: "Wishlist", route: "/buyer/dashboard/wishlist" },
   { icon: CreditCard, label: "Wallet", route: "/buyer/dashboard/wallet" },
   { icon: Settings, label: "Settings", route: "/buyer/dashboard/settings" },
 ];

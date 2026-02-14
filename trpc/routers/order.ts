@@ -176,7 +176,7 @@ export const orderRouter = createTRPCRouter({
             await client.messages.create({
                 body: `${buyer.name} (${buyer.email}) ൽ നിന്ന് നിങ്ങൾക്ക് ഒരു പുതിയ ഓർഡർ അഭ്യർത്ഥന ലഭിച്ചു. AgroStack ഡാഷ്‌ബോർഡ് പരിശോധിക്കുക.`,
                 from: process.env.TWILIO_PHONE,
-                to: farmer.phone,
+                to: `${farmer.phone}`,
             });
 
             console.log("Send email to:", farmer.email);

@@ -48,7 +48,6 @@ export default function ProductCard({ product }: { product: Product }) {
     <>
       <div className="group relative w-[17vw] overflow-hidden rounded-2xl bg-white shadow-sm transition hover:shadow-md">
         
-        {/* Image */}
         <div className="relative h-64 w-full overflow-hidden">
           <Image
             src={product.image}
@@ -58,7 +57,6 @@ export default function ProductCard({ product }: { product: Product }) {
           />
         </div>
 
-        {/* Info */}
         <div className="px-4 py-4">
           <div className="flex flex-col gap-1">
             <span className="text-xs font-medium uppercase tracking-widest text-[#2d6a4f]/60">
@@ -97,12 +95,11 @@ export default function ProductCard({ product }: { product: Product }) {
         </div>
       </div>
 
-      {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="w-80 rounded-2xl bg-white p-6 shadow-xl">
             <h3 className="text-lg font-bold text-gray-900">
-              Select Quantity
+              Select Quantity(/kg)
             </h3>
             <p className="mb-4 text-sm text-gray-500">{product.name}</p>
 
