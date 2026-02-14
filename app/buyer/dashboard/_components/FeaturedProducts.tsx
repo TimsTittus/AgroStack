@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { trpc } from "@/trpc/client";
 
 export function FeaturedProducts() {
-  const { data: products, isLoading } = trpc.product.getProducts.useQuery();
+  const { data: products, isLoading } = trpc.listings.getAllListings.useQuery();
 
   if (isLoading) return <FeaturedProductsSkeleton />;
 
