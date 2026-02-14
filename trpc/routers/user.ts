@@ -42,4 +42,14 @@ export const userRouter = createTRPCRouter({
       messages: 0,
     };
   }),
+  getWalletInfo: protectedProcedure.query(async ({ ctx }) => {
+  if (!ctx.auth) throw new Error("Unauthorized");
+
+  const [wallet] = await db
+    .select({ walletBalance: user.wallet })
+    .from(user)
+    .where(eq(user.id, ctx.auth.user.id));
+
+  return wallet ?? null;
+});
 });
