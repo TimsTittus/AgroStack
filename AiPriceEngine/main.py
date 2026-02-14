@@ -39,6 +39,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 
 from engine import HybridPredictor, AgronomicAdvisoryLayer
 from data_manager import LivePriceInformer, WeatherClient
+from simulation_engine import create_simulation_router
 
 logger = logging.getLogger("agrostack")
 logging.basicConfig(level=logging.INFO)
@@ -137,6 +138,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Simulation Module (independent — no ML, no signing)
+app.include_router(create_simulation_router(live_informer))
 
 # Endpoints
 
