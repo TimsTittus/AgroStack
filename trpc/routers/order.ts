@@ -142,5 +142,16 @@ export const orderRouter = createTRPCRouter({
 
             return { success: true };
         }),
+    getMyOrders: protectedProcedure.query(async ({ ctx }) => {
+        if (!ctx.auth) throw new Error("Unauthorized");
+        const userId = ctx.auth.user.id;
 
+        const result = await db
+            .select()
+            .from(orders)
+            .where(eq(orders.buyerId, userId))
+            .orderBy(orders.createdAt);
+
+        return result;
+    }),
 });
