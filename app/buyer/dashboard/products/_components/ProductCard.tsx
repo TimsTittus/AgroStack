@@ -47,7 +47,7 @@ export default function ProductCard({ product }: { product: Product }) {
   return (
     <>
       <div className="group relative w-[17vw] overflow-hidden rounded-2xl bg-white shadow-sm transition hover:shadow-md">
-        
+
         <div className="relative h-64 w-full overflow-hidden">
           <Image
             src={product.image}
@@ -88,7 +88,7 @@ export default function ProductCard({ product }: { product: Product }) {
                 <PlusIcon />
               </div>
               <span className="absolute -translate-x-10 text-sm font-bold opacity-0 transition-all duration-300 group-hover/btn:translate-x-0 group-hover/btn:opacity-100">
-                Buy Now
+                Order
               </span>
             </button>
           </div>

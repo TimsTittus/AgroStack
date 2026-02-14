@@ -249,6 +249,7 @@ export default function OrdersPage() {
               {/* Actions */}
               <DialogFooter className="gap-2 pt-2">
                 {selectedOrder.status === "pending" ||
+                  selectedOrder.status === "placed" ||
                   selectedOrder.status === "confirmed" ? (
                   <button
                     disabled={isMutating}
@@ -311,6 +312,7 @@ function DetailItem({
 function StatusBadge({ status }: { status: string }) {
   const config: Record<string, string> = {
     pending: "bg-amber-100 text-amber-700 border-amber-200",
+    placed: "bg-teal-100 text-teal-700 border-teal-200",
     confirmed: "bg-blue-100 text-blue-700 border-blue-200",
     shipped: "bg-indigo-100 text-indigo-700 border-indigo-200",
     delivered: "bg-emerald-100 text-emerald-700 border-emerald-200",

@@ -158,6 +158,17 @@ export const orderRouter = createTRPCRouter({
                 throw new Error("User or Farmer not found");
             }
 
+            // Update order status to "placed"
+            await db
+                .update(orders)
+                .set({ status: "placed" })
+                .where(
+                    and(
+                        eq(orders.id, input.orderId),
+                        eq(orders.buyerId, userId)
+                    )
+                );
+
             const buyer = userContact[0];
             const farmer = farmerContact[0];
             const html = await render(
@@ -235,7 +246,10 @@ export const orderRouter = createTRPCRouter({
                     and(
                         eq(orders.id, input.orderId),
                         eq(orders.farmerId, userId),
-                        eq(orders.status, "pending")
+                        or(
+                            eq(orders.status, "pending"),
+                            eq(orders.status, "placed")
+                        )
                     )
                 )
                 .returning({ id: orders.id });
@@ -257,6 +271,7 @@ export const orderRouter = createTRPCRouter({
                         eq(orders.farmerId, userId),
                         or(
                             eq(orders.status, "pending"),
+                            eq(orders.status, "placed"),
                             eq(orders.status, "confirmed")
                         )
                     )
