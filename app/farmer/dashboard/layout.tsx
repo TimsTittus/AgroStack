@@ -1,11 +1,22 @@
 import { Navbar } from "@/components/Navbar";
 import { Sidebar } from "./_components/Sidebar";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!session || session.user.role !== "farmer") {
+    redirect("/dashboard");
+  }
+
   return (
     <div className="min-h-screen bg-[#f8faf6]">
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
