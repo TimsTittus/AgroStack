@@ -23,7 +23,7 @@ const navItems = [
   { icon: Package, label: "Orders", badge: "5", route: "/buyer/dashboard/orders" },
   { icon: MessageCircle, label: "Messages", badge: "2", route: "/buyer/dashboard/messages" },
   { icon: Heart, label: "Wishlist", route: "/buyer/dashboard/wishlist" },
-  { icon: CreditCard, label: "Payments", route: "/buyer/dashboard/payments" },
+  { icon: CreditCard, label: "Wallet", route: "/buyer/dashboard/wallet" },
   { icon: Settings, label: "Settings", route: "/buyer/dashboard/settings" },
 ];
 
