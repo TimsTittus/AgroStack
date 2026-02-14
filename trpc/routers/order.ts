@@ -2,7 +2,7 @@ import { createTRPCRouter, protectedProcedure } from "../init";
 import { db } from "@/db";
 import { orders, user, listings } from "@/db/schema";
 import { transporter } from "@/lib/mailer";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, or } from "drizzle-orm";
 import { z } from "zod";
 import client from "@/lib/twilio";
 import { render } from "@react-email/render";
@@ -33,6 +33,7 @@ export const orderRouter = createTRPCRouter({
                     name: input.name,
                     price: input.price,
                     quantity: input.quantity,
+                    status: "pending",
                 })
                 .returning({ id: orders.id });
 
@@ -60,6 +61,26 @@ export const orderRouter = createTRPCRouter({
 
             return result[0] ?? null;
         }),
+    confirmOrder: protectedProcedure
+        .input(z.object({ orderId: z.string() }))
+        .mutation(async ({ input, ctx }) => {
+            if (!ctx.auth) throw new Error("Unauthorized");
+
+            const userId = ctx.auth.user.id;
+
+            const updated = await db
+                .update(orders)
+                .set({ status: "confirmed" })
+                .where(
+                    and(
+                        eq(orders.id, input.orderId),
+                        eq(orders.buyerId, userId)
+                    )
+                )
+                .returning({ id: orders.id });
+
+            return updated[0]?.id ?? null;
+        }),
     completeOrder: protectedProcedure
         .input(z.object({ orderId: z.string() }))
         .mutation(async ({ input, ctx }) => {
@@ -70,6 +91,26 @@ export const orderRouter = createTRPCRouter({
             const updated = await db
                 .update(orders)
                 .set({ status: "completed" })
+                .where(
+                    and(
+                        eq(orders.id, input.orderId),
+                        eq(orders.buyerId, userId)
+                    )
+                )
+                .returning({ id: orders.id });
+
+            return updated[0]?.id ?? null;
+        }),
+    cancelOrder: protectedProcedure
+        .input(z.object({ orderId: z.string() }))
+        .mutation(async ({ input, ctx }) => {
+            if (!ctx.auth) throw new Error("Unauthorized");
+
+            const userId = ctx.auth.user.id;
+
+            const updated = await db
+                .update(orders)
+                .set({ status: "cancelled" })
                 .where(
                     and(
                         eq(orders.id, input.orderId),
@@ -168,6 +209,69 @@ export const orderRouter = createTRPCRouter({
             .limit(4);
         return ordersData;
     }),
+    farmerConfirmOrder: protectedProcedure
+        .input(z.object({ orderId: z.string() }))
+        .mutation(async ({ input, ctx }) => {
+            if (!ctx.auth) throw new Error("Unauthorized");
+            const userId = ctx.auth.user.id;
+
+            const updated = await db
+                .update(orders)
+                .set({ status: "confirmed" })
+                .where(
+                    and(
+                        eq(orders.id, input.orderId),
+                        eq(orders.farmerId, userId),
+                        eq(orders.status, "pending")
+                    )
+                )
+                .returning({ id: orders.id });
+
+            return updated[0]?.id ?? null;
+        }),
+    farmerCancelOrder: protectedProcedure
+        .input(z.object({ orderId: z.string() }))
+        .mutation(async ({ input, ctx }) => {
+            if (!ctx.auth) throw new Error("Unauthorized");
+            const userId = ctx.auth.user.id;
+
+            const updated = await db
+                .update(orders)
+                .set({ status: "cancelled" })
+                .where(
+                    and(
+                        eq(orders.id, input.orderId),
+                        eq(orders.farmerId, userId),
+                        or(
+                            eq(orders.status, "pending"),
+                            eq(orders.status, "confirmed")
+                        )
+                    )
+                )
+                .returning({ id: orders.id });
+
+            return updated[0]?.id ?? null;
+        }),
+    farmerCompleteOrder: protectedProcedure
+        .input(z.object({ orderId: z.string() }))
+        .mutation(async ({ input, ctx }) => {
+            if (!ctx.auth) throw new Error("Unauthorized");
+            const userId = ctx.auth.user.id;
+
+            const updated = await db
+                .update(orders)
+                .set({ status: "completed" })
+                .where(
+                    and(
+                        eq(orders.id, input.orderId),
+                        eq(orders.farmerId, userId),
+                        eq(orders.status, "confirmed")
+                    )
+                )
+                .returning({ id: orders.id });
+
+            return updated[0]?.id ?? null;
+        }),
     getFarmerOrders: protectedProcedure.query(async ({ ctx }) => {
         if (!ctx.auth) throw new Error("Unauthorized");
         const userId = ctx.auth.user.id;

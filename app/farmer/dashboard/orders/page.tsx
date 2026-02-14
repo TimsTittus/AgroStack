@@ -1,11 +1,75 @@
 "use client";
 
+import { useState } from "react";
 import { trpc } from "@/trpc/client";
-import { Package, IndianRupee, ShoppingBag, Mail, User } from "lucide-react";
+import {
+  Package,
+  IndianRupee,
+  ShoppingBag,
+  Mail,
+  User,
+  CheckCircle2,
+  XCircle,
+  Calendar,
+  Hash,
+  Loader2,
+  PackageCheck,
+} from "lucide-react";
 import Image from "next/image";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+
+type FarmerOrder = {
+  id: string;
+  name: string | null;
+  quantity: string;
+  price: string;
+  status: string;
+  createdAt: string;
+  productId: string;
+  buyerName: string;
+  buyerEmail: string;
+  productImage: string;
+};
 
 export default function FarmerOrdersPage() {
-  const { data: orders, isLoading, error } = trpc.order.getFarmerOrders.useQuery();
+  const utils = trpc.useUtils();
+  const {
+    data: orders,
+    isLoading,
+    error,
+  } = trpc.order.getFarmerOrders.useQuery();
+
+  const [selectedOrder, setSelectedOrder] = useState<FarmerOrder | null>(null);
+
+  const confirmOrder = trpc.order.farmerConfirmOrder.useMutation({
+    onSuccess: () => {
+      utils.order.getFarmerOrders.invalidate();
+      setSelectedOrder(null);
+    },
+  });
+
+  const cancelOrder = trpc.order.farmerCancelOrder.useMutation({
+    onSuccess: () => {
+      utils.order.getFarmerOrders.invalidate();
+      setSelectedOrder(null);
+    },
+  });
+
+  const completeOrder = trpc.order.farmerCompleteOrder.useMutation({
+    onSuccess: () => {
+      utils.order.getFarmerOrders.invalidate();
+      setSelectedOrder(null);
+    },
+  });
+
+  const isMutating = confirmOrder.isPending || cancelOrder.isPending || completeOrder.isPending;
 
   if (isLoading) return <LoadingSkeleton />;
 
@@ -55,7 +119,8 @@ export default function FarmerOrdersPage() {
                 {orders.map((order) => (
                   <tr
                     key={order.id}
-                    className="group hover:bg-gray-50/80 transition-colors"
+                    className="group hover:bg-gray-50/80 transition-colors cursor-pointer"
+                    onClick={() => setSelectedOrder(order)}
                   >
                     <td className="px-6 py-5">
                       <div className="flex items-center gap-3">
@@ -119,6 +184,191 @@ export default function FarmerOrdersPage() {
       ) : (
         <EmptyState />
       )}
+
+      {/* ---- Order Detail Dialog ---- */}
+      <Dialog
+        open={!!selectedOrder}
+        onOpenChange={(open) => {
+          if (!open) setSelectedOrder(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          {selectedOrder && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-xl">Order Details</DialogTitle>
+                <DialogDescription>
+                  Order&nbsp;
+                  <span className="font-mono text-xs text-gray-400">
+                    #{selectedOrder.id.slice(0, 8)}
+                  </span>
+                </DialogDescription>
+              </DialogHeader>
+
+              {/* Product Info */}
+              <div className="flex items-center gap-4 rounded-xl bg-gray-50 p-4">
+                {selectedOrder.productImage ? (
+                  <Image
+                    src={selectedOrder.productImage}
+                    alt={selectedOrder.name || "Product"}
+                    width={64}
+                    height={64}
+                    className="h-16 w-16 rounded-xl object-cover"
+                  />
+                ) : (
+                  <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-[#d8f3dc] text-[#2d6a4f]">
+                    <Package size={28} />
+                  </div>
+                )}
+                <div className="flex-1 space-y-1">
+                  <p className="text-lg font-bold text-gray-900">
+                    {selectedOrder.name || "Product"}
+                  </p>
+                  <StatusBadge status={selectedOrder.status} />
+                </div>
+              </div>
+
+              {/* Detail Grid */}
+              <div className="grid grid-cols-2 gap-4">
+                <DetailItem
+                  icon={<User size={16} />}
+                  label="Buyer"
+                  value={selectedOrder.buyerName}
+                />
+                <DetailItem
+                  icon={<Mail size={16} />}
+                  label="Email"
+                  value={selectedOrder.buyerEmail}
+                />
+                <DetailItem
+                  icon={<Package size={16} />}
+                  label="Quantity"
+                  value={`x${selectedOrder.quantity}`}
+                />
+                <DetailItem
+                  icon={<IndianRupee size={16} />}
+                  label="Price"
+                  value={`₹${selectedOrder.price}`}
+                />
+                <DetailItem
+                  icon={<Hash size={16} />}
+                  label="Product ID"
+                  value={selectedOrder.productId.slice(0, 8) + "…"}
+                />
+                <DetailItem
+                  icon={<Calendar size={16} />}
+                  label="Ordered On"
+                  value={new Date(selectedOrder.createdAt).toLocaleDateString(
+                    "en-IN",
+                    { day: "numeric", month: "short", year: "numeric" }
+                  )}
+                />
+              </div>
+
+              {/* Actions */}
+              <DialogFooter className="gap-2 pt-2">
+                {selectedOrder.status === "pending" ? (
+                  <>
+                    <button
+                      disabled={isMutating}
+                      onClick={() =>
+                        cancelOrder.mutate({ orderId: selectedOrder.id })
+                      }
+                      className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {cancelOrder.isPending ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <XCircle size={16} />
+                      )}
+                      Cancel Order
+                    </button>
+                    <button
+                      disabled={isMutating}
+                      onClick={() =>
+                        confirmOrder.mutate({ orderId: selectedOrder.id })
+                      }
+                      className="inline-flex items-center gap-2 rounded-lg bg-[#2d6a4f] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#1b4332] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {confirmOrder.isPending ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <CheckCircle2 size={16} />
+                      )}
+                      Confirm Order
+                    </button>
+                  </>
+                ) : selectedOrder.status === "confirmed" ? (
+                  <>
+                    <button
+                      disabled={isMutating}
+                      onClick={() =>
+                        cancelOrder.mutate({ orderId: selectedOrder.id })
+                      }
+                      className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {cancelOrder.isPending ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <XCircle size={16} />
+                      )}
+                      Cancel Order
+                    </button>
+                    <button
+                      disabled={isMutating}
+                      onClick={() =>
+                        completeOrder.mutate({ orderId: selectedOrder.id })
+                      }
+                      className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {completeOrder.isPending ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <PackageCheck size={16} />
+                      )}
+                      Complete Order
+                    </button>
+                  </>
+                ) : (
+                  <p className="w-full text-center text-sm text-gray-400">
+                    This order has been&nbsp;
+                    <span className="font-semibold capitalize">
+                      {selectedOrder.status}
+                    </span>
+                    .
+                  </p>
+                )}
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+/* ---- Sub-components ---- */
+
+function DetailItem({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-start gap-3 rounded-lg bg-gray-50 px-4 py-3">
+      <span className="mt-0.5 text-gray-400">{icon}</span>
+      <div>
+        <p className="text-[11px] font-medium uppercase tracking-wider text-gray-400">
+          {label}
+        </p>
+        <p className="text-sm font-semibold text-gray-900 break-all">
+          {value}
+        </p>
+      </div>
     </div>
   );
 }
@@ -130,6 +380,7 @@ function StatusBadge({ status }: { status: string }) {
     shipped: "bg-indigo-100 text-indigo-700 border-indigo-200",
     delivered: "bg-emerald-100 text-emerald-700 border-emerald-200",
     completed: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    cancelled: "bg-red-100 text-red-700 border-red-200",
   };
 
   return (
