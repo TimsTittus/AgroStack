@@ -31,6 +31,12 @@ export const auth = betterAuth({
                 required: true,
                 defaultValue: null,
                 input: true 
+            },
+            wallet: {
+              type: 'string',
+              required: false,
+              defaultValue: 0,
+              input: true
             }
         }
     }
