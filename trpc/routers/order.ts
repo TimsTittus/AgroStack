@@ -189,8 +189,21 @@ export const orderRouter = createTRPCRouter({
         const userId = ctx.auth.user.id;
 
         const result = await db
-            .select()
+            .select({
+                id: orders.id,
+                name: orders.name,
+                quantity: orders.quantity,
+                price: orders.price,
+                status: orders.status,
+                createdAt: orders.createdAt,
+                productId: orders.productId,
+                farmerName: user.name,
+                farmerEmail: user.email,
+                productImage: listings.image,
+            })
             .from(orders)
+            .innerJoin(user, eq(orders.farmerId, user.id))
+            .innerJoin(listings, eq(orders.productId, listings.id))
             .where(eq(orders.buyerId, userId))
             .orderBy(orders.createdAt);
 
