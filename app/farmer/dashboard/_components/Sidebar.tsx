@@ -90,7 +90,7 @@ export function Sidebar() {
         </Sheet>
       </div>
 
-      <aside className="glass-card sticky top-16 hidden h-[calc(100vh-4rem)] w-64 flex-col justify-between overflow-y-auto p-4 lg:flex">
+      <aside className="glass-card sticky top-16 hidden h-[calc(100vh-4rem)] w-64 flex-col justify-between overflow-y-auto p-4 md:flex">
         <NavLinks />
         <PromoCard />
       </aside>
