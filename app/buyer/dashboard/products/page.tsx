@@ -5,7 +5,7 @@ import { trpc } from "@/trpc/client";
 
 export default function BrowseProducts() {
   const { data: products, isLoading } =
-    trpc.product.getProducts.useQuery();
+    trpc.listings.getAllListings.useQuery();
 
   if (isLoading) {
     return (
