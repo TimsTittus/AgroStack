@@ -51,5 +51,5 @@ export const userRouter = createTRPCRouter({
     .where(eq(user.id, ctx.auth.user.id));
 
   return wallet ?? null;
-});
+}),
 });
