@@ -2,8 +2,7 @@
 import { SummaryCards } from "./_components/SummaryCard";
 import { FeaturedProducts } from "./_components/FeaturedProducts"
 import { RecentOrders } from "./_components/RecentOrder";
-import { ProductFilters } from "./_components/ProductFilter";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 
 export default function DashboardPage() {
   return (
@@ -25,10 +24,6 @@ export default function DashboardPage() {
               </p>
             </motion.div>
             <SummaryCards />
-
-            <div className="mt-8">
-              <ProductFilters />
-            </div>
 
             <div className="mt-6">
               <FeaturedProducts />
