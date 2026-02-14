@@ -1,17 +1,18 @@
 import { z } from "zod";
 import { createTRPCRouter, publicProcedure } from "../init";
-import { productRouter } from "./products";
 import { userRouter } from "./user";
-import {orderRouter} from "./order"
+import { orderRouter } from "./order";
+import { listingsRouter } from "./listings";
+
 export const appRouter = createTRPCRouter({
   test: publicProcedure.query(async () => {
     return {
       status: "success",
     };
   }),
-  product: productRouter,
   user: userRouter,
   order: orderRouter,
+  listings: listingsRouter,
 });
 
 export type AppRouter = typeof appRouter;

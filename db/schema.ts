@@ -46,10 +46,10 @@ export const account = pgTable("account", {
 }, (table) => [
 	index("account_userId_idx").using("btree", table.userId.asc().nullsLast().op("text_ops")),
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [user.id],
-			name: "account_user_id_user_id_fk"
-		}).onDelete("cascade"),
+		columns: [table.userId],
+		foreignColumns: [user.id],
+		name: "account_user_id_user_id_fk"
+	}).onDelete("cascade"),
 ]);
 
 export const session = pgTable("session", {
@@ -64,14 +64,14 @@ export const session = pgTable("session", {
 }, (table) => [
 	index("session_userId_idx").using("btree", table.userId.asc().nullsLast().op("text_ops")),
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [user.id],
-			name: "session_user_id_user_id_fk"
-		}).onDelete("cascade"),
+		columns: [table.userId],
+		foreignColumns: [user.id],
+		name: "session_user_id_user_id_fk"
+	}).onDelete("cascade"),
 	unique("session_token_unique").on(table.token),
 ]);
 
-export const products = pgTable("products", {
+export const listings = pgTable("listings", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	name: text().notNull(),
@@ -82,10 +82,10 @@ export const products = pgTable("products", {
 	image: text().notNull(),
 }, (table) => [
 	foreignKey({
-			columns: [table.userid],
-			foreignColumns: [user.id],
-			name: "products_userid_fkey"
-		}),
+		columns: [table.userid],
+		foreignColumns: [user.id],
+		name: "listings_userid_fkey"
+	}),
 ]);
 
 export const orders = pgTable("orders", {
@@ -100,18 +100,18 @@ export const orders = pgTable("orders", {
 	status: text().default('pending').notNull(),
 }, (table) => [
 	foreignKey({
-			columns: [table.buyerId],
-			foreignColumns: [user.id],
-			name: "orders_buyer_id_fkey"
-		}),
+		columns: [table.buyerId],
+		foreignColumns: [user.id],
+		name: "orders_buyer_id_fkey"
+	}),
 	foreignKey({
-			columns: [table.farmerId],
-			foreignColumns: [user.id],
-			name: "orders_farmer_id_fkey"
-		}),
+		columns: [table.farmerId],
+		foreignColumns: [user.id],
+		name: "orders_farmer_id_fkey"
+	}),
 	foreignKey({
-			columns: [table.productId],
-			foreignColumns: [products.id],
-			name: "orders_product_id_fkey"
-		}),
+		columns: [table.productId],
+		foreignColumns: [listings.id],
+		name: "orders_product_id_fkey"
+	}),
 ]);
