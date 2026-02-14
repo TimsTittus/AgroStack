@@ -2,11 +2,12 @@ import { createTRPCRouter, protectedProcedure } from "../init";
 import { db } from "@/db";
 import { orders, user } from "@/db/schema";
 import { transporter } from "@/lib/mailer";
-import { eq, and } from "drizzle-orm";
+import { eq, and,desc } from "drizzle-orm";
 import { z } from "zod";
 import client from "@/lib/twilio";
 import { render } from "@react-email/render";
 import OrderConfirmEmail from "@/components/email/orderMail";
+
 export const orderRouter = createTRPCRouter({
     setOrder: protectedProcedure
         .input(
@@ -154,4 +155,20 @@ export const orderRouter = createTRPCRouter({
 
         return result;
     }),
+
+getRecentOrders: protectedProcedure.query(async ({ ctx }) => {
+  if (!ctx.auth) throw new Error("Unauthorized");
+
+  const userId = ctx.auth.user.id;
+  
+  const ordersData = await db
+    .select()
+    .from(orders)
+    .where(eq(orders.buyerId, userId))
+    .orderBy(desc(orders.createdAt))
+    .limit(4);
+  return ordersData;
+}),
+
+
 });
