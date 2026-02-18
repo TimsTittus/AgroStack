@@ -10,6 +10,16 @@ export const listingsRouter = createTRPCRouter({
     const data = await db.select().from(listings).orderBy(listings.createdAt);
     return data;
   }),
+  getListingsByUser: protectedProcedure
+    .input(z.object({ userId: z.string() }))
+    .query(async ({ input }) => {
+      const data = await db
+        .select()
+        .from(listings)
+        .where(eq(listings.userid, input.userId))
+        .orderBy(listings.createdAt);
+      return data;
+    }),
   getFarmerListings: protectedProcedure.query(async ({ ctx }) => {
     const data = await db
       .select()

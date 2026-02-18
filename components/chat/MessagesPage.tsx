@@ -9,10 +9,11 @@ import {
     MessageSquare,
     ArrowLeft,
     UserPlus,
+    Package,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { trpc } from "@/trpc/client";
-import { useDebounce } from "@/lib/hooks/use-debounce";
+import Image from "next/image";
 
 type Message = {
     id: string;
@@ -40,7 +41,27 @@ export default function MessagesPage() {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-    const [isTyping, setIsTyping] = useState(false);
+    const [showMentionPicker, setShowMentionPicker] = useState(false);
+    const [mentionFilter, setMentionFilter] = useState("");
+    const [mentionIndex, setMentionIndex] = useState(0);
+    const mentionRef = useRef<HTMLDivElement>(null);
+    const [attachedProduct, setAttachedProduct] = useState<{
+        id: string; name: string; price: string; quantity: string; image: string;
+    } | null>(null);
+
+    // --- localStorage cache helpers ---
+    const getCachedMessages = useCallback((recipientId: string): Message[] => {
+        try {
+            const cached = localStorage.getItem(`chat_msgs_${recipientId}`);
+            return cached ? JSON.parse(cached) : [];
+        } catch { return []; }
+    }, []);
+
+    const setCachedMessages = useCallback((recipientId: string, msgs: Message[]) => {
+        try {
+            localStorage.setItem(`chat_msgs_${recipientId}`, JSON.stringify(msgs));
+        } catch { /* storage full — ignore */ }
+    }, []);
 
     // Debounce search query to avoid too many requests
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
@@ -61,10 +82,11 @@ export default function MessagesPage() {
             .catch(() => { });
     }, []);
 
+    // --- Conversations: light poll every 30s (~2 req/min) ---
     const { data: conversations = [], isLoading: loadingConversations } =
         trpc.messaging.getConversations.useQuery(undefined, {
-            refetchInterval: 1000,
-            refetchIntervalInBackground: true,
+            refetchInterval: 30000,
+            staleTime: 25000,
         });
 
     // Search for new users who are NOT in conversations
@@ -76,50 +98,40 @@ export default function MessagesPage() {
             }
         );
 
-    const { data: chatMessages = [], isLoading: loadingMessages } =
+    // --- Messages: light poll every 10s when chat is open (~6 req/min) ---
+    const { data: serverMessages, isLoading: loadingMessages } =
         trpc.messaging.getMessages.useQuery(
             { otherUserId: selectedUser?.id ?? "" },
             {
                 enabled: !!selectedUser,
-                refetchInterval: 1000,
-                refetchIntervalInBackground: true,
+                refetchInterval: 10000,
+                staleTime: 8000,
             }
         );
 
-    // Poll for selected user's status (typing)
-    const { data: userStatus } = trpc.messaging.getUserStatus.useQuery(
-        { userId: selectedUser?.id ?? "" },
-        {
-            enabled: !!selectedUser,
-            refetchInterval: 2000,
+    // Merge server messages into localStorage cache
+    const chatMessages: Message[] = (() => {
+        if (serverMessages && selectedUser) {
+            setCachedMessages(selectedUser.id, serverMessages);
+            return serverMessages;
         }
-    );
+        if (selectedUser) {
+            return getCachedMessages(selectedUser.id);
+        }
+        return [];
+    })();
 
-    // Handle my typing status
-    const setTypingMutation = trpc.messaging.setTypingStatus.useMutation();
-    const debouncedTyping = useDebounce(inputValue, 500);
-
+    // --- Refetch on window focus (user comes back to tab) ---
     useEffect(() => {
-        if (!selectedUser) return;
-        if (inputValue.length > 0 && !isTyping) {
-            setIsTyping(true);
-            setTypingMutation.mutate({ isTyping: true });
-        } else if (inputValue.length === 0 && isTyping) {
-            setIsTyping(false);
-            setTypingMutation.mutate({ isTyping: false });
-        }
-    }, [inputValue, selectedUser, isTyping]);
-
-    // Cleanup typing status on debounce (user stopped typing)
-    useEffect(() => {
-        if (isTyping && inputValue.length > 0) {
-            const timer = setTimeout(() => {
-                setIsTyping(false);
-                setTypingMutation.mutate({ isTyping: false });
-            }, 2000);
-            return () => clearTimeout(timer);
-        }
-    }, [debouncedTyping]);
+        const handleFocus = () => {
+            utils.messaging.getConversations.invalidate();
+            if (selectedUser) {
+                utils.messaging.getMessages.invalidate({ otherUserId: selectedUser.id });
+            }
+        };
+        window.addEventListener("focus", handleFocus);
+        return () => window.removeEventListener("focus", handleFocus);
+    }, [selectedUser, utils]);
 
     const sendMessageMutation = trpc.messaging.sendMessage.useMutation({
         onSettled: () => {
@@ -127,8 +139,6 @@ export default function MessagesPage() {
                 otherUserId: selectedUser?.id ?? "",
             });
             utils.messaging.getConversations.invalidate();
-            setTypingMutation.mutate({ isTyping: false });
-            setIsTyping(false);
         },
     });
 
@@ -148,16 +158,85 @@ export default function MessagesPage() {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [chatMessages]);
 
+    // --- Fetch farmer's products for @mention (only when picker is shown) ---
+    const { data: farmerProducts = [] } = trpc.listings.getListingsByUser.useQuery(
+        { userId: selectedUser?.id ?? "" },
+        { enabled: !!selectedUser && showMentionPicker }
+    );
+
+    const filteredProducts = farmerProducts.filter((p) =>
+        p.name.toLowerCase().includes(mentionFilter.toLowerCase())
+    );
+
+    // Detect @ in input to trigger product mention picker
+    const handleInputChange = useCallback((value: string) => {
+        setInputValue(value);
+        const atIndex = value.lastIndexOf("@");
+        if (atIndex !== -1 && atIndex === value.length - 1) {
+            // Just typed @
+            setShowMentionPicker(true);
+            setMentionFilter("");
+            setMentionIndex(0);
+        } else if (atIndex !== -1 && showMentionPicker) {
+            // Typing after @
+            const filterText = value.slice(atIndex + 1);
+            if (filterText.includes(" ") && filterText.length > 15) {
+                setShowMentionPicker(false);
+            } else {
+                setMentionFilter(filterText);
+                setMentionIndex(0);
+            }
+        } else if (atIndex === -1) {
+            setShowMentionPicker(false);
+        }
+    }, [showMentionPicker]);
+
+    // Attach a product (don't send yet — let user type a message first)
+    const handleProductMention = useCallback((product: { id: string; name: string; price: string; quantity: string; image: string }) => {
+        setAttachedProduct(product);
+        setInputValue("");
+        setShowMentionPicker(false);
+        inputRef.current?.focus();
+    }, []);
+
+    // Parse a message content — returns product data or null
+    const parseProductMessage = (content: string) => {
+        try {
+            const parsed = JSON.parse(content);
+            if (parsed?.type === "product") return parsed;
+        } catch { /* plain text */ }
+        return null;
+    };
+
     const handleSend = useCallback(() => {
-        if (!inputValue.trim() || !selectedUser) return;
+        if (!selectedUser) return;
+        if (!inputValue.trim() && !attachedProduct) return;
+
+        let content: string;
+        if (attachedProduct) {
+            // Send product card with optional text
+            content = JSON.stringify({
+                type: "product",
+                listingId: attachedProduct.id,
+                name: attachedProduct.name,
+                price: attachedProduct.price,
+                quantity: attachedProduct.quantity,
+                image: attachedProduct.image,
+                text: inputValue.trim() || undefined,
+            });
+            setAttachedProduct(null);
+        } else {
+            content = inputValue.trim();
+        }
 
         sendMessageMutation.mutate({
             receiverId: selectedUser.id,
-            content: inputValue.trim(),
+            content,
         });
         setInputValue("");
+        setShowMentionPicker(false);
         inputRef.current?.focus();
-    }, [inputValue, selectedUser, sendMessageMutation]);
+    }, [inputValue, selectedUser, sendMessageMutation, attachedProduct]);
 
     // Helpers
     const getInitials = (name: string | null) => {
@@ -347,16 +426,7 @@ export default function MessagesPage() {
                                 <h3 className="font-semibold text-gray-900 text-sm truncate">
                                     {selectedUser.name}
                                 </h3>
-                                <div className="flex items-center gap-1.5 h-4">
-                                    {userStatus?.isTyping ? (
-                                        <>
-                                            <span className="flex h-1.5 w-1.5 rounded-full bg-green-500"></span>
-                                            <span className="text-[10px] text-green-600 font-medium animate-pulse">Typing...</span>
-                                        </>
-                                    ) : (
-                                        <span className="text-[10px] text-gray-500 capitalize">{selectedUser.role ?? "User"}</span>
-                                    )}
-                                </div>
+                                <span className="text-[10px] text-gray-500 capitalize">{selectedUser.role ?? "User"}</span>
                             </div>
                         </div>
 
@@ -378,30 +448,79 @@ export default function MessagesPage() {
                             ) : (
                                 chatMessages.map((msg) => {
                                     const mine = isMyMessage(msg);
+                                    const product = parseProductMessage(msg.content);
+
                                     return (
                                         <div
                                             key={msg.id}
                                             className={`flex ${mine ? "justify-end" : "justify-start"}`}
                                         >
-                                            <div
-                                                className={`max-w-[75%] sm:max-w-[60%] px-3 py-2 rounded-2xl shadow-sm text-sm relative group transition-all leading-relaxed
-                                                ${mine
-                                                        ? "bg-green-600 text-white rounded-tr-sm"
-                                                        : "bg-white text-gray-800 border border-gray-100 rounded-tl-sm"
-                                                    }`}
-                                            >
-                                                <p className="whitespace-pre-wrap text-[13px]">
-                                                    {msg.content}
-                                                </p>
-                                                <div className={`flex items-center gap-1 mt-0.5 ${mine ? "justify-end opacity-90" : "opacity-50"}`}>
-                                                    <span className="text-[9px] font-medium">
-                                                        {formatTime(msg.createdAt)}
-                                                    </span>
-                                                    {mine && (
-                                                        msg.read ? <CheckCheck className="h-2.5 w-2.5" /> : <Check className="h-2.5 w-2.5" />
+                                            {product ? (
+                                                /* Product card message */
+                                                <div className={`max-w-[80%] sm:max-w-[65%] rounded-2xl shadow-sm overflow-hidden border transition-all
+                                                    ${mine ? "border-green-200 bg-green-50 rounded-tr-sm" : "border-gray-200 bg-white rounded-tl-sm"}`}
+                                                >
+                                                    <div className="flex gap-3 p-3">
+                                                        <div className="relative h-16 w-16 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
+                                                            <Image
+                                                                src={product.image}
+                                                                alt={product.name}
+                                                                fill
+                                                                className="object-cover"
+                                                            />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-1.5 mb-0.5">
+                                                                <Package className="h-3 w-3 text-green-600" />
+                                                                <span className="text-[10px] uppercase font-semibold text-green-600 tracking-wide">Product</span>
+                                                            </div>
+                                                            <h4 className="text-sm font-bold text-gray-900 truncate">{product.name}</h4>
+                                                            <div className="flex items-center gap-2 mt-1">
+                                                                <span className="text-sm font-bold text-green-700">₹{product.price}</span>
+                                                                <span className="text-[10px] text-gray-500">• {product.quantity} available</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className={`px-3 py-1.5 text-[10px] border-t flex items-center justify-between
+                                                        ${mine ? "bg-green-100/50 border-green-200" : "bg-gray-50 border-gray-100"}`}
+                                                    >
+                                                        <span className={`font-medium ${mine ? "text-green-700" : "text-gray-500"}`}>
+                                                            {mine ? "You shared a product" : "Wants to discuss this product"}
+                                                        </span>
+                                                        <span className="text-[9px] opacity-70">
+                                                            {formatTime(msg.createdAt)}
+                                                        </span>
+                                                    </div>
+                                                    {product.text && (
+                                                        <div className={`px-3 py-2 text-[13px] border-t
+                                                            ${mine ? "bg-green-600 text-white border-green-500" : "bg-white text-gray-800 border-gray-100"}`}
+                                                        >
+                                                            <p className="whitespace-pre-wrap">{product.text}</p>
+                                                        </div>
                                                     )}
                                                 </div>
-                                            </div>
+                                            ) : (
+                                                /* Regular text message */
+                                                <div
+                                                    className={`max-w-[75%] sm:max-w-[60%] px-3 py-2 rounded-2xl shadow-sm text-sm relative group transition-all leading-relaxed
+                                                    ${mine
+                                                            ? "bg-green-600 text-white rounded-tr-sm"
+                                                            : "bg-white text-gray-800 border border-gray-100 rounded-tl-sm"
+                                                        }`}
+                                                >
+                                                    <p className="whitespace-pre-wrap text-[13px]">
+                                                        {msg.content}
+                                                    </p>
+                                                    <div className={`flex items-center gap-1 mt-0.5 ${mine ? "justify-end opacity-90" : "opacity-50"}`}>
+                                                        <span className="text-[9px] font-medium">
+                                                            {formatTime(msg.createdAt)}
+                                                        </span>
+                                                        {mine && (
+                                                            msg.read ? <CheckCheck className="h-2.5 w-2.5" /> : <Check className="h-2.5 w-2.5" />
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 })
@@ -409,17 +528,98 @@ export default function MessagesPage() {
                             <div ref={messagesEndRef} />
                         </div>
 
-                        <div className="p-3 bg-white border-t border-gray-100">
+                        <div className="p-3 bg-white border-t border-gray-100 relative">
+                            {/* Attached product preview chip */}
+                            {attachedProduct && (
+                                <div className="mx-auto max-w-4xl mb-2">
+                                    <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
+                                        <div className="relative h-8 w-8 rounded overflow-hidden flex-shrink-0 bg-gray-100">
+                                            <Image
+                                                src={attachedProduct.image}
+                                                alt={attachedProduct.name}
+                                                fill
+                                                className="object-cover"
+                                            />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <span className="text-xs font-semibold text-gray-900 truncate block">{attachedProduct.name}</span>
+                                            <span className="text-[10px] text-green-700 font-medium">₹{attachedProduct.price}</span>
+                                        </div>
+                                        <button
+                                            onClick={() => setAttachedProduct(null)}
+                                            className="text-gray-400 hover:text-red-500 transition-colors text-lg leading-none px-1"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                            {/* @mention product picker dropdown */}
+                            {showMentionPicker && filteredProducts.length > 0 && (
+                                <div
+                                    ref={mentionRef}
+                                    className="absolute bottom-full left-0 right-0 mx-3 mb-1 bg-white rounded-lg border border-gray-200 shadow-lg max-h-60 overflow-y-auto z-30"
+                                >
+                                    <div className="px-3 py-2 border-b border-gray-100 bg-gray-50/50">
+                                        <div className="flex items-center gap-1.5">
+                                            <Package className="h-3.5 w-3.5 text-green-600" />
+                                            <span className="text-xs font-semibold text-gray-600">Select a product to share</span>
+                                        </div>
+                                    </div>
+                                    {filteredProducts.map((product, idx) => (
+                                        <button
+                                            key={product.id}
+                                            onClick={() => handleProductMention(product)}
+                                            className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors
+                                                ${idx === mentionIndex ? "bg-green-50" : "hover:bg-gray-50"}`}
+                                        >
+                                            <div className="relative h-10 w-10 rounded-md overflow-hidden flex-shrink-0 bg-gray-100">
+                                                <Image
+                                                    src={product.image}
+                                                    alt={product.name}
+                                                    fill
+                                                    className="object-cover"
+                                                />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <span className="text-xs font-medium text-gray-900 truncate block">{product.name}</span>
+                                                <span className="text-[10px] text-green-700 font-semibold">₹{product.price}</span>
+                                                <span className="text-[10px] text-gray-400 ml-1.5">• {product.quantity} qty</span>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                            {showMentionPicker && filteredProducts.length === 0 && farmerProducts.length === 0 && (
+                                <div className="absolute bottom-full left-0 right-0 mx-3 mb-1 bg-white rounded-lg border border-gray-200 shadow-lg p-4 text-center z-30">
+                                    <Package className="h-5 w-5 text-gray-300 mx-auto mb-1.5" />
+                                    <p className="text-xs text-gray-500">This user has no products listed</p>
+                                </div>
+                            )}
+
                             <div className="flex items-center gap-2 max-w-4xl mx-auto">
                                 <div className="flex-1 relative">
                                     <input
                                         ref={inputRef}
                                         type="text"
-                                        placeholder="Type your message..."
+                                        placeholder={attachedProduct ? 'Type your message about this product...' : 'Type @ to mention a product...'}
                                         value={inputValue}
-                                        onChange={(e) => setInputValue(e.target.value)}
+                                        onChange={(e) => handleInputChange(e.target.value)}
                                         onKeyDown={(e) => {
-                                            if (e.key === "Enter") {
+                                            if (showMentionPicker && filteredProducts.length > 0) {
+                                                if (e.key === "ArrowDown") {
+                                                    e.preventDefault();
+                                                    setMentionIndex((i) => Math.min(i + 1, filteredProducts.length - 1));
+                                                } else if (e.key === "ArrowUp") {
+                                                    e.preventDefault();
+                                                    setMentionIndex((i) => Math.max(i - 1, 0));
+                                                } else if (e.key === "Enter") {
+                                                    e.preventDefault();
+                                                    handleProductMention(filteredProducts[mentionIndex]);
+                                                } else if (e.key === "Escape") {
+                                                    setShowMentionPicker(false);
+                                                }
+                                            } else if (e.key === "Enter") {
                                                 e.preventDefault();
                                                 handleSend();
                                             }
