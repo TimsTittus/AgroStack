@@ -32,6 +32,7 @@ export const inventoryRouter = createTRPCRouter({
       quantity: z.number().positive(),
       unit: z.string().min(1),
       marketPrice: z.number().positive(),
+      imageUrl: z.string().url().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const inventoryItem = await db.insert(inventory).values({
@@ -41,6 +42,7 @@ export const inventoryRouter = createTRPCRouter({
         unit: input.unit,
         marketPrice: input.marketPrice.toString(),
         isProfitable: false,
+        imageUrl: input.imageUrl ?? null,
       });
       return inventoryItem;
     }),

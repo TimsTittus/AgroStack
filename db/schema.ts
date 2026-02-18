@@ -26,15 +26,15 @@ export const account = pgTable("account", {
 	refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { mode: 'string' }),
 	scope: text(),
 	password: text(),
-	createdAt: timestamp("created_at").defaultNow().notNull(),
-	updatedAt: timestamp("updated_at").notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).notNull(),
 }, (table) => [
 	index("account_userId_idx").using("btree", table.userId.asc().nullsLast().op("text_ops")),
 	foreignKey({
-		columns: [table.userId],
-		foreignColumns: [user.id],
-		name: "account_user_id_user_id_fk"
-	}).onDelete("cascade"),
+			columns: [table.userId],
+			foreignColumns: [user.id],
+			name: "account_user_id_user_id_fk"
+		}).onDelete("cascade"),
 ]);
 
 export const user = pgTable("user", {
@@ -43,8 +43,8 @@ export const user = pgTable("user", {
 	email: text().notNull(),
 	emailVerified: boolean("email_verified").default(false).notNull(),
 	image: text(),
-	createdAt: timestamp("created_at").defaultNow().notNull(),
-	updatedAt: timestamp("updated_at").defaultNow().notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().notNull(),
 	role: text().notNull(),
 	phone: text().notNull(),
 	wallet: text().default('0').notNull(),
@@ -56,20 +56,20 @@ export const user = pgTable("user", {
 
 export const session = pgTable("session", {
 	id: text().primaryKey().notNull(),
-	expiresAt: timestamp("expires_at").notNull(),
+	expiresAt: timestamp("expires_at", { mode: 'string' }).notNull(),
 	token: text().notNull(),
-	createdAt: timestamp("created_at").defaultNow().notNull(),
-	updatedAt: timestamp("updated_at").defaultNow().notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).notNull(),
 	ipAddress: text("ip_address"),
 	userAgent: text("user_agent"),
 	userId: text("user_id").notNull(),
 }, (table) => [
 	index("session_userId_idx").using("btree", table.userId.asc().nullsLast().op("text_ops")),
 	foreignKey({
-		columns: [table.userId],
-		foreignColumns: [user.id],
-		name: "session_user_id_user_id_fk"
-	}).onDelete("cascade"),
+			columns: [table.userId],
+			foreignColumns: [user.id],
+			name: "session_user_id_user_id_fk"
+		}).onDelete("cascade"),
 	unique("session_token_unique").on(table.token),
 ]);
 
@@ -84,10 +84,33 @@ export const listings = pgTable("listings", {
 	image: text().notNull(),
 }, (table) => [
 	foreignKey({
-		columns: [table.userid],
-		foreignColumns: [user.id],
-		name: "listings_userid_fkey"
-	}),
+			columns: [table.userid],
+			foreignColumns: [user.id],
+			name: "listings_userid_fkey"
+		}),
+]);
+
+export const messages = pgTable("messages", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	senderId: text("sender_id").notNull(),
+	receiverId: text("receiver_id").notNull(),
+	content: text().notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	read: boolean().default(false).notNull(),
+}, (table) => [
+	index("idx_messages_created").using("btree", table.createdAt.asc().nullsLast().op("timestamptz_ops")),
+	index("idx_messages_receiver").using("btree", table.receiverId.asc().nullsLast().op("text_ops")),
+	index("idx_messages_sender").using("btree", table.senderId.asc().nullsLast().op("text_ops")),
+	foreignKey({
+			columns: [table.receiverId],
+			foreignColumns: [user.id],
+			name: "messages_receiver_id_fkey"
+		}),
+	foreignKey({
+			columns: [table.senderId],
+			foreignColumns: [user.id],
+			name: "messages_sender_id_fkey"
+		}),
 ]);
 
 export const orders = pgTable("orders", {
@@ -102,20 +125,20 @@ export const orders = pgTable("orders", {
 	status: text().default('pending').notNull(),
 }, (table) => [
 	foreignKey({
-		columns: [table.buyerId],
-		foreignColumns: [user.id],
-		name: "orders_buyer_id_fkey"
-	}),
+			columns: [table.buyerId],
+			foreignColumns: [user.id],
+			name: "orders_buyer_id_fkey"
+		}),
 	foreignKey({
-		columns: [table.farmerId],
-		foreignColumns: [user.id],
-		name: "orders_farmer_id_fkey"
-	}),
+			columns: [table.farmerId],
+			foreignColumns: [user.id],
+			name: "orders_farmer_id_fkey"
+		}),
 	foreignKey({
-		columns: [table.productId],
-		foreignColumns: [listings.id],
-		name: "orders_product_id_fkey"
-	}),
+			columns: [table.productId],
+			foreignColumns: [listings.id],
+			name: "orders_product_id_fkey"
+		}),
 ]);
 
 export const inventory = pgTable("inventory", {
@@ -128,30 +151,11 @@ export const inventory = pgTable("inventory", {
 	isProfitable: boolean("is_profitable"),
 	unit: text().default('0'),
 	quantity: text(),
+	imageUrl: text("image_url"),
 }, (table) => [
 	foreignKey({
-		columns: [table.userId],
-		foreignColumns: [user.id],
-		name: "inventory_user_id_fkey"
-	}).onDelete("cascade"),
-]);
-
-export const messages = pgTable("messages", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	senderId: text("sender_id").notNull(),
-	receiverId: text("receiver_id").notNull(),
-	content: text().notNull(),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-	read: boolean().default(false).notNull(),
-}, (table) => [
-	foreignKey({
-		columns: [table.senderId],
-		foreignColumns: [user.id],
-		name: "messages_sender_id_fkey"
-	}),
-	foreignKey({
-		columns: [table.receiverId],
-		foreignColumns: [user.id],
-		name: "messages_receiver_id_fkey"
-	}),
+			columns: [table.userId],
+			foreignColumns: [user.id],
+			name: "inventory_user_id_fkey"
+		}).onDelete("cascade"),
 ]);

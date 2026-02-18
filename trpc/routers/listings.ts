@@ -37,7 +37,7 @@ export const listingsRouter = createTRPCRouter({
         price: z.string().min(1, "Price is required"),
         quantity: z.string().min(1, "Quantity is required"),
         description: z.string().optional(),
-        image: z.string().min(1, "Image URL is required"),
+        image: z.string().default(""),
       })
     )
     .mutation(async ({ input, ctx }) => {

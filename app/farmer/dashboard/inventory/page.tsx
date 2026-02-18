@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
+import Image from "next/image";
 import {
   Search,
   Plus,
@@ -18,6 +19,8 @@ import {
   Minus,
   Plus as PlusIcon,
   ChevronDown,
+  ImagePlus,
+  X,
 } from "lucide-react";
 import {
   Dialog,
@@ -56,6 +59,7 @@ type InventoryItem = {
   marketPrice: number; // ₹ per kg (fetched from market)
   isProfitable: boolean; // prediction from DB / AI engine
   addedAt: string;
+  imageUrl?: string | null;
 };
 
 /* ─── Helper Functions ─── */
@@ -131,6 +135,7 @@ export default function InventoryPage() {
     marketPrice: Number(row.marketPrice ?? 0),
     isProfitable: row.isProfitable ?? false,
     addedAt: row.createdAt,
+    imageUrl: row.imageUrl,
   }));
 
   // Local state for optimistic UI (new items added during this session)
@@ -156,6 +161,12 @@ export default function InventoryPage() {
   const [isFetchingPrice, setIsFetchingPrice] = useState(false);
   const [previewPrice, setPreviewPrice] = useState<number | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Image upload state
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // tRPC utils for imperative (on-demand) market price fetching
   const utils = trpc.useUtils();
@@ -202,12 +213,57 @@ export default function InventoryPage() {
     }
   }
 
+  function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      setFormError("Please select a valid image file.");
+      return;
+    }
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setFormError("Image must be smaller than 5MB.");
+      return;
+    }
+
+    setImageFile(file);
+    setFormError(null);
+    const reader = new FileReader();
+    reader.onloadend = () => setImagePreview(reader.result as string);
+    reader.readAsDataURL(file);
+  }
+
+  function removeImage() {
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  async function uploadImage(file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!res.ok) throw new Error("Image upload failed");
+    const data = await res.json();
+    return data.url;
+  }
+
   function resetForm() {
     setCropName("");
     setQuantity("");
     setUnit("kg");
     setPreviewPrice(null);
     setFormError(null);
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -225,6 +281,14 @@ export default function InventoryPage() {
 
     setIsSubmitting(true);
     try {
+      // Upload image if selected
+      let imageUrl: string | undefined;
+      if (imageFile) {
+        setIsUploadingImage(true);
+        imageUrl = await uploadImage(imageFile);
+        setIsUploadingImage(false);
+      }
+
       // Fetch market price first
       const marketPrice = previewPrice ?? (await fetchLiveMarketPrice(cropName.trim()));
 
@@ -234,11 +298,13 @@ export default function InventoryPage() {
         quantity: parseFloat(quantity),
         unit,
         marketPrice,
+        imageUrl,
       });
 
       setDialogOpen(false);
       resetForm();
     } catch {
+      setIsUploadingImage(false);
       setFormError("Failed to add item. Please try again.");
     } finally {
       setIsSubmitting(false);
@@ -503,6 +569,50 @@ export default function InventoryPage() {
                 )}
               </div>
 
+              {/* Image Upload */}
+              <div className="grid gap-2">
+                <Label className="text-sm font-medium text-[#1a2e1a]">
+                  Product Image
+                </Label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                  id="image-upload"
+                />
+                {imagePreview ? (
+                  <div className="relative group">
+                    <div className="relative h-40 w-full overflow-hidden rounded-xl border border-[#d8f3dc]">
+                      <Image
+                        src={imagePreview}
+                        alt="Preview"
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={removeImage}
+                      className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white shadow-md transition hover:bg-red-600"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex h-40 w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#d8f3dc] bg-[#f0f7ed]/30 text-[#7ca87c] transition hover:border-[#2d6a4f] hover:bg-[#f0f7ed]/60 hover:text-[#2d6a4f]"
+                  >
+                    <ImagePlus className="h-8 w-8" />
+                    <span className="text-xs font-medium">Click to upload image</span>
+                    <span className="text-[10px] text-[#7ca87c]/70">PNG, JPG, WebP up to 5MB</span>
+                  </button>
+                )}
+              </div>
+
               {/* Error */}
               {formError && (
                 <p className="text-sm text-red-500">{formError}</p>
@@ -530,7 +640,7 @@ export default function InventoryPage() {
                   {isSubmitting ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Adding…
+                      {isUploadingImage ? "Uploading image…" : "Adding…"}
                     </>
                   ) : (
                     <>
@@ -654,8 +764,20 @@ export default function InventoryPage() {
 
             return (
               <>
-                {/* Top accent bar */}
-                <div className={`h-2 w-full bg-gradient-to-r ${accentGradient}`} />
+                {/* Image or accent bar */}
+                {selectedItem.imageUrl ? (
+                  <div className="relative h-48 w-full overflow-hidden">
+                    <Image
+                      src={selectedItem.imageUrl}
+                      alt={selectedItem.cropName}
+                      fill
+                      className="object-cover"
+                    />
+                    <div className={`absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t ${profitable ? "from-white/90" : "from-white/90"} to-transparent`} />
+                  </div>
+                ) : (
+                  <div className={`h-2 w-full bg-gradient-to-r ${accentGradient}`} />
+                )}
 
                 <div className="px-6 pb-6 pt-5 space-y-5">
                   {/* Header */}
@@ -928,10 +1050,22 @@ function InventoryCard({ item, onClick }: { item: InventoryItem; onClick: () => 
       onClick={onClick}
       className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/60 bg-white/70 shadow-sm backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
     >
-      {/* Top accent bar */}
-      <div
-        className={`h-1.5 w-full bg-gradient-to-r ${theme.accentFrom} ${theme.accentTo}`}
-      />
+      {/* Image or accent bar */}
+      {item.imageUrl ? (
+        <div className="relative h-36 w-full overflow-hidden">
+          <Image
+            src={item.imageUrl}
+            alt={item.cropName}
+            fill
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+          <div className={`absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t ${profitable ? "from-[#2d6a4f]/20" : "from-[#b91c1c]/20"} to-transparent`} />
+        </div>
+      ) : (
+        <div
+          className={`h-1.5 w-full bg-gradient-to-r ${theme.accentFrom} ${theme.accentTo}`}
+        />
+      )}
 
       <div className="p-5">
         {/* Header */}

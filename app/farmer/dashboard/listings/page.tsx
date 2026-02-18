@@ -74,6 +74,7 @@ type InventoryItem = {
   marketPrice: number | null; // ₹ per kg (fetched from market)
   isProfitable: boolean | null; // prediction from DB / AI engine
   addedAt?: string; // optional field
+  imageUrl?: string | null;
 };
 
 export default function ListingsPage() {
@@ -112,6 +113,7 @@ export default function ListingsPage() {
       marketPrice: item.marketPrice ? parseFloat(item.marketPrice) : null,
       isProfitable: item.isProfitable,
       addedAt: item.createdAt,
+      imageUrl: item.imageUrl,
     }))
     .find((item: InventoryItem) => item.id === selectedCropId);
 
@@ -172,7 +174,7 @@ export default function ListingsPage() {
       price,
       quantity,
       description: description || undefined,
-      image: "", // or remove if not needed
+      image: selectedInventory.imageUrl || "",
     });
   }
 
@@ -259,11 +261,36 @@ export default function ListingsPage() {
                     </SelectGroup>
                   </SelectContent>
                 </Select>
-                {/* Show selected product name */}
+                {/* Show selected product name & image */}
                 {selectedInventory && (
-                  <p className="text-xs text-[#2d6a4f] font-medium">
-                    Selected: {selectedInventory.cropName}
-                  </p>
+                  <div className="space-y-2">
+                    <p className="text-xs text-[#2d6a4f] font-medium">
+                      Selected: {selectedInventory.cropName}
+                    </p>
+                    {selectedInventory.imageUrl ? (
+                      <div className="relative h-36 w-full overflow-hidden rounded-xl border border-[#d8f3dc]">
+                        <Image
+                          src={selectedInventory.imageUrl}
+                          alt={selectedInventory.cropName}
+                          fill
+                          className="object-cover"
+                        />
+                        <div className="absolute inset-x-0 bottom-0 flex items-center gap-1.5 bg-gradient-to-t from-black/50 to-transparent px-3 pb-2 pt-6">
+                          <Package className="h-3 w-3 text-white/80" />
+                          <span className="text-[10px] font-medium text-white/90">
+                            Image from inventory
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50/60 px-3 py-2">
+                        <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
+                        <span className="text-[11px] text-amber-700">
+                          No image in inventory. Add one in the Inventory page for a better listing.
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -285,8 +312,8 @@ export default function ListingsPage() {
                     disabled={!!selectedInventory}
                     className="rounded-xl border-[#d8f3dc] bg-white/80 text-[#1a2e1a] placeholder:text-[#7ca87c] focus-visible:ring-[#2d6a4f]/30 disabled:bg-[#f0f7ed] disabled:cursor-not-allowed"
                   />
-                   <Label htmlFor="listing-price" className="text-sm font-medium text-[#1a2e1a]">
-                     Price (₹) <span className="text-red-500">*</span>
+                  <Label htmlFor="listing-price" className="text-sm font-medium text-[#1a2e1a]">
+                    Price (₹) <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="listing-price"
@@ -576,20 +603,31 @@ export default function ListingsPage() {
             return (
               <>
                 {/* Hero Image */}
-                <div className="relative h-56 w-full overflow-hidden">
-                  <Image
-                    src={selectedListing.image}
-                    alt={selectedListing.name}
-                    fill
-                    className="object-cover"
-                  />
-                  <div className="absolute inset-0 bg-linear-to-t from-black/50 via-transparent to-transparent" />
-                  <div className="absolute bottom-4 left-5 right-5">
-                    <h2 className="text-2xl font-bold text-white drop-shadow-md">
-                      {selectedListing.name}
-                    </h2>
+                {selectedListing.image ? (
+                  <div className="relative h-56 w-full overflow-hidden">
+                    <Image
+                      src={selectedListing.image}
+                      alt={selectedListing.name}
+                      fill
+                      className="object-cover"
+                    />
+                    <div className="absolute inset-0 bg-linear-to-t from-black/50 via-transparent to-transparent" />
+                    <div className="absolute bottom-4 left-5 right-5">
+                      <h2 className="text-2xl font-bold text-white drop-shadow-md">
+                        {selectedListing.name}
+                      </h2>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="relative flex h-40 w-full items-center justify-center bg-gradient-to-br from-[#d8f3dc] to-[#b7e4c7]">
+                    <Package className="h-12 w-12 text-[#2d6a4f]/40" />
+                    <div className="absolute bottom-4 left-5 right-5">
+                      <h2 className="text-2xl font-bold text-[#1a2e1a]">
+                        {selectedListing.name}
+                      </h2>
+                    </div>
+                  </div>
+                )}
 
                 {/* Body */}
                 <div className="px-6 pb-6 pt-5 space-y-5">
@@ -747,8 +785,8 @@ function RecommendationDisplay({
   data: any;
   currentPrice: number;
 }) {
-  const recommendation = typeof data === "string" 
-    ? data 
+  const recommendation = typeof data === "string"
+    ? data
     : (data?.recommendation ?? data?.insights ?? data ?? "No recommendation available");
 
   return (
@@ -813,22 +851,33 @@ function ListingCard({
       className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/60 bg-white/70 shadow-sm backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
     >
       {/* Image */}
-      <div className="relative h-48 w-full overflow-hidden">
-        <Image
-          src={listing.image}
-          alt={listing.name}
-          fill
-          className="object-cover transition-transform duration-700 group-hover:scale-110"
-        />
-        {/* linear overlay */}
-        <div className="absolute inset-0 bg-linear-to-t from-black/30 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+      {listing.image ? (
+        <div className="relative h-48 w-full overflow-hidden">
+          <Image
+            src={listing.image}
+            alt={listing.name}
+            fill
+            className="object-cover transition-transform duration-700 group-hover:scale-110"
+          />
+          {/* linear overlay */}
+          <div className="absolute inset-0 bg-linear-to-t from-black/30 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
-        {/* Quantity Badge */}
-        <div className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-[#1a2e1a] shadow-sm backdrop-blur-sm">
-          <Layers className="h-3 w-3 text-[#2d6a4f]" />
-          {listing.quantity} in stock
+          {/* Quantity Badge */}
+          <div className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-[#1a2e1a] shadow-sm backdrop-blur-sm">
+            <Layers className="h-3 w-3 text-[#2d6a4f]" />
+            {listing.quantity} in stock
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="relative flex h-36 w-full items-center justify-center bg-gradient-to-br from-[#d8f3dc] to-[#b7e4c7]">
+          <Package className="h-10 w-10 text-[#2d6a4f]/30" />
+          {/* Quantity Badge */}
+          <div className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-[#1a2e1a] shadow-sm backdrop-blur-sm">
+            <Layers className="h-3 w-3 text-[#2d6a4f]" />
+            {listing.quantity} in stock
+          </div>
+        </div>
+      )}
 
       {/* Details */}
       <div className="p-4">
