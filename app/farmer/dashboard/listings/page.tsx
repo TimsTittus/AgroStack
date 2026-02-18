@@ -16,8 +16,12 @@ import {
   Tag,
   BarChart3,
   FileText,
+  MapPin,
+  Lightbulb,
+  TrendingUp,
+  AlertCircle,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +46,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 
 type Listing = {
   id: string;
@@ -52,11 +66,24 @@ type Listing = {
   description: string | null;
   createdAt: string;
 };
+type InventoryItem = {
+  id: string;
+  cropName: string;
+  quantity: number; // in kg
+  unit: string | null;
+  marketPrice: number | null; // ₹ per kg (fetched from market)
+  isProfitable: boolean | null; // prediction from DB / AI engine
+  addedAt?: string; // optional field
+};
 
 export default function ListingsPage() {
   const utils = trpc.useUtils();
   const { data: listings, isLoading } =
     trpc.listings.getFarmerListings.useQuery();
+
+  // Fetch inventory from DB via tRPC
+  const { data: dbInventory, isLoading: isLoadingInventory } = trpc.inventory.getInventory.useQuery();
+
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -65,11 +92,42 @@ export default function ListingsPage() {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
 
   // Form state
-  const [name, setName] = useState("");
+  const [selectedCropId, setSelectedCropId] = useState("");
   const [price, setPrice] = useState("");
   const [quantity, setQuantity] = useState("");
   const [description, setDescription] = useState("");
-  const [image, setImage] = useState("");
+  const [location, setLocation] = useState("");
+
+  // Recommendation state
+  const [recommendDialogOpen, setRecommendDialogOpen] = useState(false);
+  const recommendMutation = trpc.fed.recommend.useMutation();
+
+  // Get selected inventory item details
+  const selectedInventory = dbInventory
+    ?.map((item) => ({
+      id: String(item.id),
+      cropName: item.cropId || "Unknown Crop",
+      quantity: parseFloat(item.quantity || "0"),
+      unit: item.unit,
+      marketPrice: item.marketPrice ? parseFloat(item.marketPrice) : null,
+      isProfitable: item.isProfitable,
+      addedAt: item.createdAt,
+    }))
+    .find((item: InventoryItem) => item.id === selectedCropId);
+
+  // Check if all required fields are filled for recommendations
+  const canShowRecommendation = !!(
+    selectedCropId &&
+    selectedInventory?.marketPrice &&
+    location.trim()
+  );
+
+  // Update price when crop is selected
+  useEffect(() => {
+    if (selectedInventory) {
+      setPrice(String(selectedInventory.marketPrice));
+    }
+  }, [selectedInventory]);
 
   const addListingMutation = trpc.listings.addListing.useMutation({
     onSuccess: () => {
@@ -88,21 +146,33 @@ export default function ListingsPage() {
   });
 
   function resetForm() {
-    setName("");
+    setSelectedCropId("");
     setPrice("");
     setQuantity("");
     setDescription("");
-    setImage("");
+    setLocation("");
+    recommendMutation.reset();
+  }
+
+  function handleShowRecommendation() {
+    if (!canShowRecommendation || !selectedInventory) return;
+    recommendMutation.mutate({
+      crop: selectedInventory.cropName,
+      current_price: selectedInventory.marketPrice!,
+      current_location: location.trim(),
+    });
+    setRecommendDialogOpen(true);
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!selectedInventory) return;
     addListingMutation.mutate({
-      name,
+      name: selectedInventory.cropName,
       price,
       quantity,
       description: description || undefined,
-      image,
+      image: "", // or remove if not needed
     });
   }
 
@@ -134,7 +204,10 @@ export default function ListingsPage() {
         </div>
 
         {/* Add Listing Dialog */}
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={dialogOpen} onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) resetForm();
+        }}>
           <DialogTrigger asChild>
             <Button
               id="add-listing-btn"
@@ -145,7 +218,7 @@ export default function ListingsPage() {
             </Button>
           </DialogTrigger>
 
-          <DialogContent className="sm:max-w-[500px] border-[#d8f3dc] bg-white/95 backdrop-blur-xl">
+          <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto border-[#d8f3dc] bg-white/95 backdrop-blur-xl">
             <DialogHeader>
               <DialogTitle className="text-xl font-bold text-[#1a2e1a]">
                 Create New Listing
@@ -156,26 +229,49 @@ export default function ListingsPage() {
             </DialogHeader>
 
             <form onSubmit={handleSubmit} className="mt-4 grid gap-5">
-              {/* Product Name */}
+              {/* Product Name - Select from Inventory */}
               <div className="grid gap-2">
                 <Label htmlFor="listing-name" className="text-sm font-medium text-[#1a2e1a]">
                   Product Name <span className="text-red-500">*</span>
                 </Label>
-                <Input
-                  id="listing-name"
-                  placeholder="e.g. Organic Tomatoes"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  className="rounded-xl border-[#d8f3dc] bg-white/80 text-[#1a2e1a] placeholder:text-[#7ca87c] focus-visible:ring-[#2d6a4f]/30"
-                />
+                <Select
+                  value={selectedCropId}
+                  onValueChange={(val) => setSelectedCropId(val)}
+                  disabled={isLoadingInventory}
+                >
+                  <SelectTrigger className="w-full rounded-xl border-[#d8f3dc] bg-white/80 text-[#1a2e1a]">
+                    <SelectValue
+                      placeholder={
+                        isLoadingInventory
+                          ? "Loading inventory..."
+                          : "Select a product"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectLabel>Available Crops</SelectLabel>
+                      {dbInventory?.map((item) => (
+                        <SelectItem key={String(item.id)} value={String(item.id)}>
+                          {item.cropId || "Unknown Crop"} ({item.quantity || 0} {item.unit || "units"} available)
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                {/* Show selected product name */}
+                {selectedInventory && (
+                  <p className="text-xs text-[#2d6a4f] font-medium">
+                    Selected: {selectedInventory.cropName}
+                  </p>
+                )}
               </div>
 
               {/* Price & Quantity */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="listing-price" className="text-sm font-medium text-[#1a2e1a]">
-                    Price (₹) <span className="text-red-500">*</span>
+                    Market Price (₹) <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="listing-price"
@@ -186,23 +282,50 @@ export default function ListingsPage() {
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
                     required
-                    className="rounded-xl border-[#d8f3dc] bg-white/80 text-[#1a2e1a] placeholder:text-[#7ca87c] focus-visible:ring-[#2d6a4f]/30"
+                    disabled={!!selectedInventory}
+                    className="rounded-xl border-[#d8f3dc] bg-white/80 text-[#1a2e1a] placeholder:text-[#7ca87c] focus-visible:ring-[#2d6a4f]/30 disabled:bg-[#f0f7ed] disabled:cursor-not-allowed"
                   />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="listing-quantity" className="text-sm font-medium text-[#1a2e1a]">
-                    Quantity <span className="text-red-500">*</span>
+                   <Label htmlFor="listing-price" className="text-sm font-medium text-[#1a2e1a]">
+                     Price (₹) <span className="text-red-500">*</span>
                   </Label>
                   <Input
-                    id="listing-quantity"
+                    id="listing-price"
                     type="number"
-                    min="1"
-                    placeholder="e.g. 100"
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value)}
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
                     required
-                    className="rounded-xl border-[#d8f3dc] bg-white/80 text-[#1a2e1a] placeholder:text-[#7ca87c] focus-visible:ring-[#2d6a4f]/30"
+                    className="rounded-xl border-[#d8f3dc] bg-white/80 text-[#1a2e1a] placeholder:text-[#7ca87c] focus-visible:ring-[#2d6a4f]/30 disabled:bg-[#f0f7ed] disabled:cursor-not-allowed"
                   />
+                  {selectedInventory && (
+                    <p className="text-xs text-[#7ca87c]">
+                      Market price auto-filled
+                    </p>
+                  )}
+                </div>
+                <div className="grid gap-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="listing-quantity" className="text-sm font-medium text-[#1a2e1a]">
+                      Quantity <span className="text-red-500">*</span>
+                    </Label>
+                    <span className="text-sm font-semibold text-[#2d6a4f]">
+                      {quantity || 0} {selectedInventory?.unit || "units"}
+                    </span>
+                  </div>
+                  <Slider
+                    value={[Number(quantity) || 0]}
+                    onValueChange={(val) => setQuantity(String(val[0]))}
+                    min={1}
+                    max={selectedInventory?.quantity || 100}
+                    step={1}
+                    disabled={!selectedCropId}
+                    className="py-2 [&_[data-slot=slider-track]]:bg-[#d8f3dc] [&_[data-slot=slider-range]]:bg-[#2d6a4f] [&_[data-slot=slider-thumb]]:bg-[#2d6a4f] [&_[data-slot=slider-thumb]]:border-[#2d6a4f] [&_[data-slot=slider-thumb]]:h-5 [&_[data-slot=slider-thumb]]:w-5 [&_[data-slot=slider-track]]:h-2"
+                  />
+                  {selectedInventory && (
+                    <p className="text-xs text-[#7ca87c]">
+                      Max: {selectedInventory.quantity} {selectedInventory.unit}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -221,21 +344,41 @@ export default function ListingsPage() {
                 />
               </div>
 
-              {/* Image URL */}
+              {/* Location */}
               <div className="grid gap-2">
-                <Label htmlFor="listing-image" className="text-sm font-medium text-[#1a2e1a]">
-                  Image URL <span className="text-red-500">*</span>
+                <Label htmlFor="listing-location" className="text-sm font-medium text-[#1a2e1a]">
+                  Location <span className="text-red-500">*</span>
                 </Label>
-                <Input
-                  id="listing-image"
-                  type="url"
-                  placeholder="https://example.com/image.jpg"
-                  value={image}
-                  onChange={(e) => setImage(e.target.value)}
-                  required
-                  className="rounded-xl border-[#d8f3dc] bg-white/80 text-[#1a2e1a] placeholder:text-[#7ca87c] focus-visible:ring-[#2d6a4f]/30"
-                />
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#7ca87c]" />
+                  <Input
+                    id="listing-location"
+                    type="text"
+                    placeholder="e.g. Kottayam, Kerala"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    required
+                    className="rounded-xl border-[#d8f3dc] bg-white/80 pl-10 text-[#1a2e1a] placeholder:text-[#7ca87c] focus-visible:ring-[#2d6a4f]/30"
+                  />
+                </div>
               </div>
+
+              {/* Show Recommendations Button */}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleShowRecommendation}
+                disabled={!canShowRecommendation}
+                className="gap-2 rounded-xl border-[#2d6a4f]/30 text-[#2d6a4f] hover:bg-[#d8f3dc] hover:text-[#1b4332] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Lightbulb className="h-4 w-4" />
+                Show AI Recommendations
+              </Button>
+              {!canShowRecommendation && (
+                <p className="text-xs text-[#7ca87c] -mt-3">
+                  Select a crop and enter location to get recommendations
+                </p>
+              )}
 
               {/* Error message */}
               {addListingMutation.error && (
@@ -271,6 +414,68 @@ export default function ListingsPage() {
                 </Button>
               </div>
             </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* AI Recommendation Dialog */}
+        <Dialog
+          open={recommendDialogOpen}
+          onOpenChange={(open) => {
+            setRecommendDialogOpen(open);
+            if (!open) recommendMutation.reset();
+          }}
+        >
+          <DialogContent className="sm:max-w-[480px] border-[#d8f3dc] bg-white/95 backdrop-blur-xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-xl font-bold text-[#1a2e1a]">
+                <Lightbulb className="h-5 w-5 text-[#2d6a4f]" />
+                AI Recommendation
+              </DialogTitle>
+              <DialogDescription className="text-[#5c7a5c]">
+                Market insights for {selectedInventory?.cropName} in {location}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="mt-4">
+              {recommendMutation.isPending && (
+                <div className="flex flex-col items-center justify-center py-10">
+                  <Loader2 className="h-8 w-8 animate-spin text-[#2d6a4f]" />
+                  <p className="mt-3 text-sm text-[#5c7a5c]">
+                    Analyzing market data...
+                  </p>
+                </div>
+              )}
+
+              {recommendMutation.error && (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5 text-red-500" />
+                    <p className="text-sm font-medium text-red-700">
+                      Failed to get recommendations
+                    </p>
+                  </div>
+                  <p className="mt-1 text-xs text-red-500">
+                    {recommendMutation.error.message}
+                  </p>
+                </div>
+              )}
+
+              {recommendMutation.data && (
+                <RecommendationDisplay
+                  data={recommendMutation.data}
+                  currentPrice={selectedInventory?.marketPrice || 0}
+                />
+              )}
+            </div>
+
+            <DialogFooter className="mt-4">
+              <Button
+                onClick={() => setRecommendDialogOpen(false)}
+                className="rounded-xl bg-gradient-to-r from-[#2d6a4f] to-[#40916c] text-white"
+              >
+                Got it
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
@@ -531,6 +736,26 @@ export default function ListingsPage() {
           })()}
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function RecommendationDisplay({
+  data,
+  currentPrice,
+}: {
+  data: any;
+  currentPrice: number;
+}) {
+  const recommendation = typeof data === "string" 
+    ? data 
+    : (data?.recommendation ?? data?.insights ?? data ?? "No recommendation available");
+
+  return (
+    <div className="rounded-xl border bg-green-500/30 border-[#d8f3dc]/80  p-4">
+      <p className="text-sm leading-relaxed text-black font-bold">
+        {recommendation}.
+      </p>
     </div>
   );
 }
