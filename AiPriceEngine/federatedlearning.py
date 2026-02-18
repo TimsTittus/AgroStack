@@ -341,3 +341,80 @@ class FederatedPricePredictor:
             "crop": crop,
             "regions": region_forecasts,
         }
+
+    # ── Region Recommendation ────────────────────────────────────────────
+
+    def recommend_best_region(
+        self,
+        crop: str,
+        current_price: float,
+        current_location: str,
+    ) -> Dict[str, Any]:
+        """Recommend the best region to sell a crop based on federated forecasts.
+
+        Runs the full federated pipeline, computes the average predicted price
+        over the next 7 days for each region, and compares against the caller's
+        *current_price* to determine the optimal selling location.
+
+        Parameters
+        ----------
+        crop : One of ``SUPPORTED_CROPS``.
+        current_price : The seller's current price (₹).
+        current_location : One of ``REGIONS``.
+
+        Returns
+        -------
+        JSON-serialisable dict with recommendation details.
+        """
+        crop = crop.strip().lower()
+        if crop not in SUPPORTED_CROPS:
+            raise ValueError(
+                f"Unsupported crop '{crop}'. Choose from {SUPPORTED_CROPS}"
+            )
+
+        current_location = current_location.strip().title()
+        if current_location not in REGIONS:
+            raise ValueError(
+                f"Unknown region '{current_location}'. Choose from {REGIONS}"
+            )
+
+        # Reuse federated pipeline (trains + forecasts)
+        pipeline_result = self.run_federated_pipeline(crop)
+        region_forecasts = pipeline_result["regions"]
+
+        # Compute average predicted price for next 7 days per region
+        avg_7d: Dict[str, float] = {}
+        for region, data in region_forecasts.items():
+            first_7 = data["forecast"][:7]
+            avg_7d[region] = round(float(np.mean(first_7)), 2)
+
+        # Determine best region
+        best_region = max(avg_7d, key=avg_7d.get)  # type: ignore[arg-type]
+        best_avg = avg_7d[best_region]
+        price_diff = round(best_avg - current_price, 2)
+
+        # Build response
+        if best_region == current_location:
+            return {
+                "crop": crop,
+                "current_location": current_location,
+                "current_price": current_price,
+                "best_region": current_location,
+                "expected_avg_price_next_7_days": best_avg,
+                "price_difference": price_diff,
+                "all_region_averages": avg_7d,
+                "recommendation": "Current location is optimal for selling",
+            }
+
+        return {
+            "crop": crop,
+            "current_location": current_location,
+            "current_price": current_price,
+            "best_region": best_region,
+            "expected_avg_price_next_7_days": best_avg,
+            "price_difference": price_diff,
+            "all_region_averages": avg_7d,
+            "recommendation": (
+                f"Sell in {best_region} for higher expected returns"
+            ),
+        }

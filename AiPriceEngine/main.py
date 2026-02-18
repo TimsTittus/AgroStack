@@ -33,6 +33,7 @@ load_dotenv()
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import hashes, serialization
@@ -40,9 +41,18 @@ from cryptography.hazmat.primitives import hashes, serialization
 from engine import HybridPredictor, AgronomicAdvisoryLayer
 from data_manager import LivePriceInformer, WeatherClient
 from simulation_engine import create_simulation_router
-from federatedlearning import FederatedPricePredictor, SUPPORTED_CROPS
+from federatedlearning import FederatedPricePredictor, SUPPORTED_CROPS, REGIONS
 
 logger = logging.getLogger("agrostack")
+
+
+# ── Pydantic Request Models ──────────────────────────────────────────────────
+
+class RecommendRequest(BaseModel):
+    """Request body for the federated region recommendation endpoint."""
+    crop: str
+    current_price: float
+    current_location: str
 logging.basicConfig(level=logging.INFO)
 
 # RSA Digital Signature Utility
@@ -328,5 +338,39 @@ async def federated_prediction(crop_id: str):
         result = fed_predictor.run_federated_pipeline(crop)
     except Exception as exc:
         logger.exception("Federated pipeline failed for %s", crop_id)
+        raise HTTPException(status_code=500, detail=str(exc))
+    return result
+
+
+@app.post("/federated/recommend", tags=["Federated Learning"])
+async def federated_recommend(body: RecommendRequest):
+    """Recommend the best region to sell a crop based on federated forecasts.
+
+    Uses the federated pipeline to generate 30-day forecasts, then compares
+    the 7-day average predicted price across regions against the caller's
+    current price.
+    """
+    crop = body.crop.strip().lower()
+    if crop not in SUPPORTED_CROPS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported crop '{body.crop}'. Choose from: {SUPPORTED_CROPS}",
+        )
+
+    location = body.current_location.strip().title()
+    if location not in REGIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown region '{body.current_location}'. Choose from: {REGIONS}",
+        )
+
+    try:
+        result = fed_predictor.recommend_best_region(
+            crop=crop,
+            current_price=body.current_price,
+            current_location=location,
+        )
+    except Exception as exc:
+        logger.exception("Federated recommendation failed for %s", crop)
         raise HTTPException(status_code=500, detail=str(exc))
     return result
