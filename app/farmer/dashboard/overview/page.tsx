@@ -21,6 +21,7 @@ import {
 import { getMarketTickerData, MarketData, getHistoricalPrices } from "@/lib/mandi";
 import MarketRouterV2 from "@/components/MarketRouterV2";
 import { AgroStackLogo } from "@/components/AgroStackLogo";
+import { TalkToAgent } from "../_components/TalkToAgent";
 
 // --- Self-contained UI Components (to avoid missing dependency issues) ---
 
@@ -491,6 +492,8 @@ export default function OverviewPage() {
                     />
                 </div>
             </main>
+            <TalkToAgent />
         </div>
+        
     );
 }
