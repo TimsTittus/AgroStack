@@ -310,9 +310,9 @@ export default function OverviewPage() {
                         <Button variant="outline" className="flex-1 md:flex-none gap-2 border-[#d8f3dc] bg-white/50 backdrop-blur-sm px-3 md:px-4">
                             <CalendarIcon className="h-4 w-4" /> <span className="hidden xs:inline">Last 30 Days</span><span className="xs:hidden">30d</span>
                         </Button>
-                        <Button className="flex-1 md:flex-none gap-2 px-3 md:px-4">
+                        {/* <Button className="flex-1 md:flex-none gap-2 px-3 md:px-4">
                             <Maximize2 className="h-4 w-4" /> <span className="hidden xs:inline">Full Report</span><span className="xs:hidden">Report</span>
-                        </Button>
+                        </Button> */}
                     </div>
                 </div>
 
