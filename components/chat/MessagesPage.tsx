@@ -159,7 +159,7 @@ export default function MessagesPage() {
     }, [chatMessages]);
 
     // --- Fetch farmer's products for @mention (only when picker is shown) ---
-    const { data: farmerProducts = [] } = trpc.listings.getListingsByUser.useQuery(
+    const { data: farmerProducts = [], isLoading: isLoadingProducts } = trpc.listings.getListingsByUser.useQuery(
         { userId: selectedUser?.id ?? "" },
         { enabled: !!selectedUser && showMentionPicker }
     );
@@ -305,47 +305,57 @@ export default function MessagesPage() {
                             <div className="px-2 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
                                 Conversations
                             </div>
-                            {filteredConversations.map((conv) => (
-                                <button
-                                    key={conv.id}
-                                    onClick={() => setSelectedUser(conv)}
-                                    className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg transition-all duration-200 ${selectedUser?.id === conv.id
-                                        ? "bg-white shadow-sm ring-1 ring-gray-200"
-                                        : "hover:bg-gray-100/80"
-                                        }`}
-                                >
-                                    <div className="relative flex-shrink-0">
-                                        <Avatar className="h-8 w-8 border border-gray-100">
-                                            <AvatarImage src={conv.image ?? undefined} />
-                                            <AvatarFallback className="bg-gradient-to-br from-green-50 to-green-100 text-green-700 font-semibold text-[10px]">
-                                                {getInitials(conv.name)}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        {conv.unread > 0 && (
-                                            <span className="absolute -top-0.5 -right-0.5 h-3 min-w-[12px] flex items-center justify-center bg-green-500 rounded-full ring-1.5 ring-white">
-                                                <span className="text-[8px] font-bold text-white px-0.5">
-                                                    {conv.unread}
-                                                </span>
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="flex-1 min-w-0 text-left">
-                                        <div className="flex justify-between items-baseline mb-0.5">
-                                            <span className="font-medium text-xs text-gray-900 truncate">
-                                                {conv.name}
-                                            </span>
-                                            {conv.lastMessageTime && (
-                                                <span className="text-[9px] text-gray-400 flex-shrink-0 ml-1.5">
-                                                    {formatTime(conv.lastMessageTime)}
+                            {filteredConversations.map((conv) => {
+                                const lastMsgProduct = parseProductMessage(conv.lastMessage || "");
+                                return (
+                                    <button
+                                        key={conv.id}
+                                        onClick={() => setSelectedUser(conv)}
+                                        className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg transition-all duration-200 ${selectedUser?.id === conv.id
+                                            ? "bg-white shadow-sm ring-1 ring-gray-200"
+                                            : "hover:bg-gray-100/80"
+                                            }`}
+                                    >
+                                        <div className="relative flex-shrink-0">
+                                            <Avatar className="h-8 w-8 border border-gray-100">
+                                                <AvatarImage src={conv.image ?? undefined} />
+                                                <AvatarFallback className="bg-gradient-to-br from-green-50 to-green-100 text-green-700 font-semibold text-[10px]">
+                                                    {getInitials(conv.name)}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            {conv.unread > 0 && (
+                                                <span className="absolute -top-0.5 -right-0.5 h-3 min-w-[12px] flex items-center justify-center bg-green-500 rounded-full ring-1.5 ring-white">
+                                                    <span className="text-[8px] font-bold text-white px-0.5">
+                                                        {conv.unread}
+                                                    </span>
                                                 </span>
                                             )}
                                         </div>
-                                        <p className={`text-[11px] truncate ${conv.unread > 0 ? "font-medium text-gray-900" : "text-gray-500"}`}>
-                                            {conv.lastMessage || "No messages"}
-                                        </p>
-                                    </div>
-                                </button>
-                            ))}
+                                        <div className="flex-1 min-w-0 text-left">
+                                            <div className="flex justify-between items-baseline mb-0.5">
+                                                <span className="font-medium text-xs text-gray-900 truncate">
+                                                    {conv.name}
+                                                </span>
+                                                {conv.lastMessageTime && (
+                                                    <span className="text-[9px] text-gray-400 flex-shrink-0 ml-1.5">
+                                                        {formatTime(conv.lastMessageTime)}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className={`text-[11px] truncate ${conv.unread > 0 ? "font-medium text-gray-900" : "text-gray-500"}`}>
+                                                {lastMsgProduct ? (
+                                                    <span className="flex items-center gap-1">
+                                                        <Package className="h-3 w-3 inline" />
+                                                        {lastMsgProduct.text ? lastMsgProduct.text : `Shared product: ${lastMsgProduct.name}`}
+                                                    </span>
+                                                ) : (
+                                                    conv.lastMessage || "No messages"
+                                                )}
+                                            </p>
+                                        </div>
+                                    </button>
+                                );
+                            })}
                         </div>
                     )}
 
@@ -555,7 +565,16 @@ export default function MessagesPage() {
                                 </div>
                             )}
                             {/* @mention product picker dropdown */}
-                            {showMentionPicker && filteredProducts.length > 0 && (
+                            {showMentionPicker && isLoadingProducts && (
+                                <div className="absolute bottom-full left-0 right-0 mx-3 mb-1 bg-white rounded-lg border border-gray-200 shadow-lg p-4 text-center z-30">
+                                    <div className="flex items-center justify-center gap-2 text-gray-400">
+                                        <div className="h-4 w-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+                                        <span className="text-xs">Loading products...</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {showMentionPicker && !isLoadingProducts && filteredProducts.length > 0 && (
                                 <div
                                     ref={mentionRef}
                                     className="absolute bottom-full left-0 right-0 mx-3 mb-1 bg-white rounded-lg border border-gray-200 shadow-lg max-h-60 overflow-y-auto z-30"
@@ -590,10 +609,13 @@ export default function MessagesPage() {
                                     ))}
                                 </div>
                             )}
-                            {showMentionPicker && filteredProducts.length === 0 && farmerProducts.length === 0 && (
+
+                            {showMentionPicker && !isLoadingProducts && filteredProducts.length === 0 && (
                                 <div className="absolute bottom-full left-0 right-0 mx-3 mb-1 bg-white rounded-lg border border-gray-200 shadow-lg p-4 text-center z-30">
                                     <Package className="h-5 w-5 text-gray-300 mx-auto mb-1.5" />
-                                    <p className="text-xs text-gray-500">This user has no products listed</p>
+                                    <p className="text-xs text-gray-500">
+                                        {farmerProducts.length === 0 ? "This user has no products listed" : "No matching products found"}
+                                    </p>
                                 </div>
                             )}
 
@@ -602,7 +624,7 @@ export default function MessagesPage() {
                                     <input
                                         ref={inputRef}
                                         type="text"
-                                        placeholder={attachedProduct ? 'Type your message about this product...' : 'Type @ to mention a product...'}
+                                        placeholder={attachedProduct ? 'Type your message about this product...' : 'Type your message'}
                                         value={inputValue}
                                         onChange={(e) => handleInputChange(e.target.value)}
                                         onKeyDown={(e) => {
