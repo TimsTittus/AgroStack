@@ -3,6 +3,8 @@ import { db } from "@/db";
 import { listings } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
+import { generateText, Output } from 'ai';
+import { groq } from '@ai-sdk/groq';
 import { TRPCError } from "@trpc/server";
 
 export const listingsRouter = createTRPCRouter({
@@ -56,7 +58,11 @@ export const listingsRouter = createTRPCRouter({
       return inserted[0]?.id ?? null;
     }),
   deleteListing: protectedProcedure
-    .input(z.object({ id: z.string().uuid() }))
+    .input(
+      z.object({
+        id: z.string().uuid()
+      })
+    )
     .mutation(async ({ input, ctx }) => {
       const userId = ctx.auth?.user?.id as string;
 
@@ -74,4 +80,29 @@ export const listingsRouter = createTRPCRouter({
 
       return { success: true };
     }),
+  generateSuggestion: protectedProcedure
+    .input(
+      z.object({
+        price: z.string()
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const result = await generateText({
+        model: groq('moonshotai/kimi-k2-instruct-0905'),
+        output: Output.object({
+          schema: z.object({
+            suggestions: z.object({
+              price: z.string(),
+              quantity: z.string(),
+              place: z.string()
+            }),
+            reasoning: z.string()
+          }),
+        }),
+        system: "You are an expert agricultural consultant. Your task is to analyze the provided market data and generate optimal pricing and quantity suggestions with place for a farmer's listing. The suggestions should be based on current market trends, demand, and supply dynamics.",
+        prompt: ``
+      });
+
+      return result.output;
+    })
 });

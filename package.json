@@ -10,8 +10,14 @@
     "inngest": "npx --ignore-scripts=false inngest-cli@latest dev"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.45",
+    "@ai-sdk/groq": "^3.0.24",
+    "@ai-sdk/mcp": "^1.0.21",
+    "@ai-sdk/openai": "^3.0.29",
+    "@ai-sdk/react": "^3.0.93",
     "@react-email/components": "^1.0.7",
     "@react-email/render": "^2.0.4",
+    "@smithery/api": "^0.48.0",
     "@tanstack/react-query": "^5.90.21",
     "@trpc/client": "^11.10.0",
     "@trpc/react-query": "^11.10.0",
@@ -19,6 +25,7 @@
     "@types/leaflet": "^1.9.21",
     "@types/nodemailer": "^7.0.9",
     "@upstash/redis": "^1.36.2",
+    "ai": "^6.0.91",
     "better-auth": "^1.4.18",
     "cheerio": "^1.2.0",
     "class-variance-authority": "^0.7.1",
