@@ -21,7 +21,7 @@ const navItems = [
   { icon: ShoppingBag, label: "Listings", route: "/farmer/dashboard/listings" },
   { icon: ChartCandlestick, label: "Stocks", route: "/farmer/dashboard/stocks" },
   { icon: Package, label: "Orders", route: "/farmer/dashboard/orders" },
-  { icon: Sprout, label: "Crops", route: "/farmer/dashboard/crops" },
+  { icon: Sprout, label: "Inventory", route: "/farmer/dashboard/inventory" },
   { icon: Wallet, label: "Wallet", route: "/farmer/dashboard/wallet" },
   { icon: Settings, label: "Settings", route: "/farmer/dashboard/settings" },
 ];
