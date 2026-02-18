@@ -18,6 +18,7 @@ export const appRouter = createTRPCRouter({
   listings: listingsRouter,
   inventory: inventoryRouter,
   fed: federatedRouter,
+  facebook: facebookRouter,
 });
 
 export type AppRouter = typeof appRouter;

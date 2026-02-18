@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "inngest": "npx --ignore-scripts=false inngest-cli@latest dev"
   },
   "dependencies": {
     "@react-email/components": "^1.0.7",
@@ -26,6 +27,7 @@
     "dotenv": "^17.3.1",
     "drizzle-orm": "^0.45.1",
     "elevenlabs": "^1.59.0",
+    "inngest": "^3.52.1",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.563.0",
     "motion": "^12.34.0",
