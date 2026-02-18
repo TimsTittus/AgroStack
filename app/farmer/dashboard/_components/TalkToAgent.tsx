@@ -12,7 +12,6 @@ export function TalkToAgent() {
   const [audioLevels, setAudioLevels] = useState<number[]>([0.3, 0.5, 0.7, 0.5, 0.3]);
   const animationRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Simulate audio visualization
   useEffect(() => {
     if (isConnected && !isMuted) {
       animationRef.current = setInterval(() => {
@@ -30,8 +29,8 @@ export function TalkToAgent() {
   }, [isConnected, isMuted]);
 
   const handleStartCall = () => {
+    //trpccc.call.start();
     setIsConnecting(true);
-    // Simulate connection delay
     setTimeout(() => {
       setIsConnecting(false);
       setIsConnected(true);
@@ -55,7 +54,6 @@ export function TalkToAgent() {
 
   return (
     <>
-      {/* Floating Button */}
       <motion.button
         onClick={() => setIsOpen(true)}
         className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 rounded-full bg-gradient-to-r from-[#2d6a4f] to-[#40916c] px-5 py-3 text-white shadow-lg shadow-[#2d6a4f]/30 transition-all hover:shadow-xl hover:scale-105"
@@ -66,7 +64,6 @@ export function TalkToAgent() {
         <span className="text-sm font-semibold">Talk to Agent</span>
       </motion.button>
 
-      {/* Modal Overlay */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -76,7 +73,6 @@ export function TalkToAgent() {
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
             onClick={handleClose}
           >
-            {/* Agent Call Interface */}
             <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -85,7 +81,6 @@ export function TalkToAgent() {
               onClick={(e) => e.stopPropagation()}
               className="relative w-full max-w-sm mx-4 rounded-3xl bg-gradient-to-b from-[#1a2e1a] to-[#0d1f0d] p-8 shadow-2xl"
             >
-              {/* Close Button */}
               <button
                 onClick={handleClose}
                 className="absolute right-4 top-4 rounded-full p-2 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
@@ -93,10 +88,8 @@ export function TalkToAgent() {
                 <X className="h-5 w-5" />
               </button>
 
-              {/* Agent Avatar with Glow */}
               <div className="flex flex-col items-center">
                 <div className="relative">
-                  {/* Outer glow rings */}
                   <motion.div
                     className="absolute inset-0 rounded-full bg-[#40916c]/20"
                     animate={{
@@ -125,7 +118,6 @@ export function TalkToAgent() {
                     style={{ width: 120, height: 120, margin: -10 }}
                   />
 
-                  {/* Avatar */}
                   <motion.div
                     className="relative flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-[#40916c] to-[#2d6a4f] shadow-lg shadow-[#2d6a4f]/50"
                     animate={{
@@ -147,7 +139,6 @@ export function TalkToAgent() {
                   </motion.div>
                 </div>
 
-                {/* Agent Name */}
                 <h3 className="mt-6 text-xl font-bold text-white">AgroStack AI</h3>
                 <p className="mt-1 text-sm text-white/60">
                   {isConnecting
@@ -157,7 +148,6 @@ export function TalkToAgent() {
                     : "Your farming assistant"}
                 </p>
 
-                {/* Audio Visualization */}
                 {isConnected && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
@@ -175,7 +165,6 @@ export function TalkToAgent() {
                   </motion.div>
                 )}
 
-                {/* Status Text */}
                 {isConnected && (
                   <motion.p
                     initial={{ opacity: 0 }}
@@ -187,7 +176,6 @@ export function TalkToAgent() {
                 )}
               </div>
 
-              {/* Action Buttons */}
               <div className="mt-8 flex items-center justify-center gap-4">
                 {!isConnected && !isConnecting && (
                   <motion.button
@@ -212,7 +200,6 @@ export function TalkToAgent() {
 
                 {isConnected && (
                   <>
-                    {/* Mute Button */}
                     <motion.button
                       onClick={() => setIsMuted(!isMuted)}
                       className={`flex h-14 w-14 items-center justify-center rounded-full transition-all ${
@@ -230,7 +217,6 @@ export function TalkToAgent() {
                       )}
                     </motion.button>
 
-                    {/* End Call Button */}
                     <motion.button
                       onClick={handleEndCall}
                       className="flex h-16 w-16 items-center justify-center rounded-full bg-red-500 text-white shadow-lg shadow-red-500/30 transition-all hover:bg-red-600"
