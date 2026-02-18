@@ -78,13 +78,6 @@ const Button = ({ children, className = "", variant = "default", onClick }: { ch
 
 // --- Mock Data (Based on farmer_dashboard_data.json) ---
 const DASHBOARD_DATA = {
-    market_ticker: [
-        { crop_name: "Rubber", live_modal_price: 184.50, day_change_percentage: 1.25, trend_color_code: "#22c55e" },
-        { crop_name: "Black Pepper", live_modal_price: 615.00, day_change_percentage: -0.45, trend_color_code: "#ef4444" },
-        { crop_name: "Cardamom", live_modal_price: 2450.00, day_change_percentage: 2.10, trend_color_code: "#22c55e" },
-        { crop_name: "Coffee Robusta", live_modal_price: 158.00, day_change_percentage: 0.85, trend_color_code: "#22c55e" },
-        { crop_name: "Arecanut", live_modal_price: 432.00, day_change_percentage: -1.15, trend_color_code: "#ef4444" },
-    ],
     crop_intelligence_cards: [
         {
             listing_id: "a1b2c3d4-e5f6-4a5b-bc6d-7e8f90123456",
@@ -235,7 +228,7 @@ const IntelligenceCard = ({ crop, isSelected, onSelect, livePrice }: { crop: any
 // --- Main Page Component ---
 
 export default function OverviewPage() {
-    const [tickerData, setTickerData] = useState<MarketData[]>(DASHBOARD_DATA.market_ticker);
+    const [tickerData, setTickerData] = useState<MarketData[]>([]);
     const [selectedCrop, setSelectedCrop] = useState(DASHBOARD_DATA.crop_intelligence_cards[0]);
     const [calcQuantity, setCalcQuantity] = useState(100);
     const [historicalData, setHistoricalData] = useState<{ date: string, price: number }[]>([]);
@@ -263,7 +256,7 @@ export default function OverviewPage() {
     }, [selectedCrop.name]);
 
     const getLivePriceForCrop = (name: string) => {
-        const liveMatch = tickerData.find(t => t.crop_name === name || (name === "Rubber" && t.crop_name === "Rubber") || (name === "Black Pepper" && t.crop_name === "Black Pepper"));
+        const liveMatch = tickerData?.find(t => t.crop_name === name || (name === "Rubber" && t.crop_name === "Rubber") || (name === "Black Pepper" && t.crop_name === "Black Pepper"));
         return liveMatch?.live_modal_price;
     };
 
@@ -293,6 +286,65 @@ export default function OverviewPage() {
     };
 
     const graphPaths = generatePaths();
+
+    // ── Decision-Support Engine ────────────────────────────────────
+    const VOLATILITY = 0.12;        // ±12%
+    const STORAGE_PER_KG_MONTH = 1.5;  // ₹/kg/month
+    const COST_RATIO = 0.6;         // ~60% cost ratio estimate
+
+    const currentPrice = parseFloat(
+        (getLivePriceForCrop(selectedCrop.name) || selectedCrop.current_live_price).toFixed(2)
+    );
+    const price3m = parseFloat((currentPrice * 1.05).toFixed(2));
+    const price6m = parseFloat((currentPrice * 1.10).toFixed(2));
+
+    const estimatedCost = calcQuantity * currentPrice * COST_RATIO;
+    const breakEvenPrice = calcQuantity > 0 ? parseFloat((estimatedCost / calcQuantity).toFixed(2)) : 0;
+
+    // Storage costs
+    const storageCost3m = calcQuantity * STORAGE_PER_KG_MONTH * 3;
+    const storageCost6m = calcQuantity * STORAGE_PER_KG_MONTH * 6;
+
+    // Net profits (revenue - cost - storage)
+    const currentProfit = parseFloat(((calcQuantity * currentPrice) - estimatedCost).toFixed(2));
+    const profit3m = parseFloat(((calcQuantity * price3m) - estimatedCost - storageCost3m).toFixed(2));
+    const profit6m = parseFloat(((calcQuantity * price6m) - estimatedCost - storageCost6m).toFixed(2));
+
+    // Price volatility ranges
+    const price3mLow = parseFloat((price3m * (1 - VOLATILITY)).toFixed(2));
+    const price3mHigh = parseFloat((price3m * (1 + VOLATILITY)).toFixed(2));
+    const price6mLow = parseFloat((price6m * (1 - VOLATILITY)).toFixed(2));
+    const price6mHigh = parseFloat((price6m * (1 + VOLATILITY)).toFixed(2));
+
+    // Risk level
+    const riskLevel = VOLATILITY * 100 < 8 ? "Low" : VOLATILITY * 100 <= 15 ? "Medium" : "High";
+
+    // Confidence score
+    let confidence = 75;
+    if (VOLATILITY * 100 > 15) confidence -= 10;
+    // rainfall data not available client-side; default
+    confidence = Math.max(0, Math.min(100, confidence));
+
+    // Smart recommendation
+    const getRecommendation = (): string => {
+        if (currentPrice < breakEvenPrice) {
+            return `⚠️ Current price (₹${currentPrice}) is below break-even (₹${breakEvenPrice}/kg). Consider reducing costs or waiting.`;
+        }
+        if (price3m < breakEvenPrice && price6m < breakEvenPrice) {
+            return "📉 Projected prices remain below break-even. Sell now to minimize losses.";
+        }
+        if (riskLevel === "High") {
+            return "⚡ High market volatility. Consider selling 50% now and holding the rest.";
+        }
+        if (profit6m > profit3m && profit6m > currentProfit) {
+            return `📈 Holding for 6 months yields the highest net profit (₹${profit6m.toLocaleString()} vs ₹${currentProfit.toLocaleString()} now), even after storage costs.`;
+        }
+        if (profit3m > currentProfit) {
+            return `📊 Selling after 3 months offers better returns (₹${profit3m.toLocaleString()} vs ₹${currentProfit.toLocaleString()} now) with moderate risk.`;
+        }
+        return "✅ Selling now is your best option. Projected gains don't justify storage costs.";
+    };
+    const recommendation = getRecommendation();
 
     return (
         <div className="flex-1 bg-[#f8faf6] pb-12 min-w-0">
@@ -401,55 +453,105 @@ export default function OverviewPage() {
                         </Card>
                     </div>
 
-                    {/* Hybrid Graph Card - Now on Right for Desktop */}
-                    <Card className="col-span-1 overflow-hidden lg:col-span-2 border-none bg-white shadow-xl shadow-green-900/5 order-1 lg:order-2">
-                        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-gray-50 pb-6 gap-4">
-                            <div>
-                                <CardTitle className="text-xl md:text-2xl font-bold text-[#1a2e1a]">Hybrid Analytics: {selectedCrop.name}</CardTitle>
-                                <CardDescription className="flex flex-wrap items-center gap-1.5 mt-1">
-                                    <Badge variant="secondary" className="bg-green-50 text-green-700 font-bold border-green-100">Prophet + LSTM</Badge>
-                                    <span className="text-xs">Market Trend Deep Dive</span>
-                                </CardDescription>
-                            </div>
-                            <div className="flex gap-3 text-[9px] md:text-[10px] font-bold uppercase text-gray-400">
-                                <div className="flex items-center gap-1.5">
-                                    <div className="h-2 w-2 md:h-2.5 md:w-2.5 rounded-full bg-[#1b4332]" />
-                                    <span>Historical</span>
+                    <Card className="col-span-1 lg:col-span-2 bg-white shadow-xl shadow-green-900/5">
+                        <CardHeader className="pb-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <CardTitle className="flex items-center gap-2"><TrendingUp className="h-5 w-5 text-[#2d6a4f]" /> Forward Price Outlook</CardTitle>
+                                    <CardDescription>Revenue & Profit Projection · {calcQuantity} kg · {selectedCrop.name}</CardDescription>
                                 </div>
-                                <div className="flex items-center gap-1.5">
-                                    <div className="h-2 w-2 md:h-2.5 md:w-2.5 rounded-full bg-[#2d6a4f] opacity-40" />
-                                    <span>AI Projected</span>
+                                <div className="flex items-center gap-2">
+                                    <Badge className={`text-[10px] px-2 py-1 ${riskLevel === "Low" ? "bg-green-100 text-green-700" :
+                                        riskLevel === "Medium" ? "bg-yellow-100 text-yellow-700" :
+                                            "bg-red-100 text-red-700"
+                                        }`}>{riskLevel} Risk</Badge>
+                                    <Badge variant="outline" className="text-[10px] px-2 py-1 border-[#2d6a4f] text-[#2d6a4f]">{confidence}% Confidence</Badge>
                                 </div>
                             </div>
                         </CardHeader>
-                        <CardContent className="pt-8">
-                            <div className="relative h-48 md:h-64 w-full">
-                                <div className="absolute inset-x-0 bottom-0 h-px bg-gray-100" />
-                                <div className="absolute inset-y-0 left-0 w-px bg-gray-100" />
-                                <svg className="h-full w-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 500 250">
-                                    <motion.path
-                                        initial={{ pathLength: 0 }}
-                                        animate={{ pathLength: 1 }}
-                                        transition={{ duration: 1.5 }}
-                                        d={graphPaths.historical}
-                                        fill="none" stroke="#1b4332" strokeWidth="4" strokeLinecap="round"
-                                    />
-                                    <motion.path
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        transition={{ delay: 1 }}
-                                        d={graphPaths.predicted}
-                                        fill="none" stroke="#2d6a4f" strokeWidth="4" strokeDasharray="8,8" strokeLinecap="round"
-                                    />
-                                </svg>
-                                <div className="absolute top-0 h-full w-px border-l-2 border-dashed border-[#2d6a4f]/30" style={{ left: `${(graphPaths.currentX / 500) * 100}%` }}>
-                                    <div className="absolute -top-4 -translate-x-1/2 rounded-md bg-[#2d6a4f] px-2 py-0.5 text-[10px] font-bold text-white shadow-lg">Current</div>
+
+                        <CardContent className="space-y-6">
+                            {/* Break-Even Line */}
+                            <div className="flex items-center gap-3 rounded-xl bg-gray-50 p-3">
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm">
+                                    <Calculator className="h-4 w-4 text-[#2d6a4f]" />
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Break-Even Price</p>
+                                    <p className="text-sm font-bold text-[#1a2e1a]">₹{breakEvenPrice.toLocaleString()}/kg</p>
+                                </div>
+                                <div className={`text-xs font-bold px-2 py-1 rounded-lg ${currentPrice > breakEvenPrice ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                                    {currentPrice > breakEvenPrice ? "✓ Above" : "✗ Below"}
                                 </div>
                             </div>
-                            <div className="mt-8 md:mt-10 flex items-start gap-3 md:gap-4 rounded-2xl bg-[#f0f7ed] p-4 md:p-5">
-                                <div className="flex h-8 w-8 md:h-10 md:w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#2d6a4f] shadow-sm"><Info className="h-4 w-4 md:h-5 md:w-5" /></div>
-                                <p className="text-xs md:text-sm leading-relaxed text-[#2d6a4f]"><span className="font-bold">Expert Note:</span> {selectedCrop.expert_xai_snippet}</p>
+
+                            {/* Price Comparison Cards */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {/* Current */}
+                                <div className="p-4 rounded-xl bg-green-50 border border-green-100">
+                                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Sell Now</p>
+                                    <p className="text-xl font-bold text-[#1a2e1a] mt-1">₹{currentPrice.toLocaleString()}/kg</p>
+                                    <div className="mt-3 pt-3 border-t border-green-100">
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Net Profit</p>
+                                        <p className="text-lg font-black text-[#2d6a4f]">₹{currentProfit.toLocaleString()}</p>
+                                        <p className="text-[10px] text-gray-400">No storage cost</p>
+                                    </div>
+                                </div>
+
+                                {/* 3 Months */}
+                                <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
+                                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">After 3 Months</p>
+                                    <p className="text-xl font-bold text-[#1a2e1a] mt-1">₹{price3m.toLocaleString()}/kg</p>
+                                    <p className="text-[10px] text-gray-400 mt-0.5">Range: ₹{price3mLow} – ₹{price3mHigh}</p>
+                                    <div className="mt-3 pt-3 border-t border-blue-100">
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Net Profit</p>
+                                        <p className={`text-lg font-black ${profit3m > currentProfit ? "text-[#2d6a4f]" : "text-gray-600"}`}>₹{profit3m.toLocaleString()}</p>
+                                        <p className="text-[10px] text-gray-400">Storage: ₹{storageCost3m.toLocaleString()}</p>
+                                    </div>
+                                </div>
+
+                                {/* 6 Months */}
+                                <div className="p-4 rounded-xl bg-purple-50 border border-purple-100">
+                                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">After 6 Months</p>
+                                    <p className="text-xl font-bold text-[#1a2e1a] mt-1">₹{price6m.toLocaleString()}/kg</p>
+                                    <p className="text-[10px] text-gray-400 mt-0.5">Range: ₹{price6mLow} – ₹{price6mHigh}</p>
+                                    <div className="mt-3 pt-3 border-t border-purple-100">
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Net Profit</p>
+                                        <p className={`text-lg font-black ${profit6m > currentProfit ? "text-[#2d6a4f]" : "text-gray-600"}`}>₹{profit6m.toLocaleString()}</p>
+                                        <p className="text-[10px] text-gray-400">Storage: ₹{storageCost6m.toLocaleString()}</p>
+                                    </div>
+                                </div>
                             </div>
+
+                            {/* Confidence Bar */}
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                                    <span>Projection Confidence</span>
+                                    <span className="text-[#2d6a4f]">{confidence}%</span>
+                                </div>
+                                <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                                    <motion.div
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${confidence}%` }}
+                                        transition={{ duration: 1, ease: "easeOut" }}
+                                        className="h-full rounded-full bg-gradient-to-r from-[#2d6a4f] to-[#40916c]"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* AI Recommendation */}
+                            <div className="p-4 rounded-xl bg-[#f0f7ed] border border-[#d8f3dc]">
+                                <div className="flex items-start gap-3">
+                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-[#2d6a4f] shadow-sm">
+                                        <Zap className="h-4 w-4" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-bold uppercase tracking-wider text-[#2d6a4f] mb-1">AI Recommendation</p>
+                                        <p className="text-sm leading-relaxed text-[#1a2e1a]">{recommendation}</p>
+                                    </div>
+                                </div>
+                            </div>
+
                         </CardContent>
                     </Card>
                 </div>
@@ -494,6 +596,6 @@ export default function OverviewPage() {
             </main>
             <TalkToAgent />
         </div>
-        
+
     );
 }

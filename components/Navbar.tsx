@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, Bell, ChevronDown, LogOut } from "lucide-react";
+import { Search, Bell, ChevronDown, LogOut, MessageSquare, Package, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useState, useRef, useEffect } from "react";
@@ -9,11 +9,14 @@ import GoogleTranslate from "./GoogleTranslate";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { authClient, signOut } from "@/lib/auth-client";
 import { AgroStackLogo } from "./AgroStackLogo";
+import { trpc } from "@/trpc/client";
 
 export function Navbar() {
   const [searchFocused, setSearchFocused] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
 
@@ -28,22 +31,48 @@ export function Navbar() {
     .toUpperCase()
     .slice(0, 2);
 
-  // Close dropdown on outside click
+  // ── Notifications from DB ─────────────────────────────────────
+  const { data: notifData } = trpc.notifications.getNotifications.useQuery(undefined, {
+    refetchInterval: 30000, // poll every 30s
+    staleTime: 25000,
+  });
+
+  const notifications = notifData?.items ?? [];
+  const totalUnread = notifData?.totalUnread ?? 0;
+
+  // Close dropdowns on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setDropdownOpen(false);
       }
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
     }
-    if (dropdownOpen) {
+    if (dropdownOpen || notifOpen) {
       document.addEventListener("mousedown", handleClickOutside);
     }
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [dropdownOpen]);
+  }, [dropdownOpen, notifOpen]);
 
   const handleLogout = async () => {
     await signOut();
     router.push("/login");
+  };
+
+  const formatNotifTime = (dateStr: string) => {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return "Just now";
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHrs = Math.floor(diffMin / 60);
+    if (diffHrs < 24) return `${diffHrs}h ago`;
+    const diffDays = Math.floor(diffHrs / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return d.toLocaleDateString([], { month: "short", day: "numeric" });
   };
 
   return (
@@ -63,12 +92,85 @@ export function Navbar() {
       </div>
 
       <div className="flex items-center gap-4">
-        <button className="group relative flex h-10 w-10 items-center justify-center rounded-full bg-white/60 transition-all duration-200 hover:bg-[#e8f0e4] hover:shadow-md">
-          <Bell className="h-\[18px] w-\[18px] text-[#5c7a5c] transition-colors group-hover:text-[#2d6a4f]" />
-          <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-linear-to-r from-[#ff6b6b] to-[#ee5a24] text-[10px] font-bold text-white shadow-sm">
-            3
-          </span>
-        </button>
+        {/* ── Notification Bell ───────────────────────────────── */}
+        <div className="relative" ref={notifRef}>
+          <button
+            onClick={() => setNotifOpen((prev) => !prev)}
+            className="group relative flex h-10 w-10 items-center justify-center rounded-full bg-white/60 transition-all duration-200 hover:bg-[#e8f0e4] hover:shadow-md"
+          >
+            <Bell className="h-[18px] w-[18px] text-[#5c7a5c] transition-colors group-hover:text-[#2d6a4f]" />
+            {totalUnread > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-linear-to-r from-[#ff6b6b] to-[#ee5a24] text-[10px] font-bold text-white shadow-sm">
+                {totalUnread > 9 ? "9+" : totalUnread}
+              </span>
+            )}
+          </button>
+
+          {/* Notification Dropdown */}
+          {notifOpen && (
+            <div className="absolute right-0 top-full mt-2 w-80 md:w-96 overflow-hidden rounded-xl border border-[#d4e7d0] bg-white shadow-xl animate-in fade-in slide-in-from-top-2 duration-200 z-50">
+              <div className="flex items-center justify-between border-b border-[#e8f0e4] px-4 py-3">
+                <div>
+                  <p className="text-sm font-bold text-[#1a2e1a]">Notifications</p>
+                  <p className="text-[10px] text-[#5c7a5c]">{totalUnread} unread</p>
+                </div>
+                <button onClick={() => setNotifOpen(false)} className="p-1 rounded-full hover:bg-gray-100 transition-colors">
+                  <X className="h-4 w-4 text-gray-400" />
+                </button>
+              </div>
+
+              <div className="max-h-80 overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 px-4">
+                    <Bell className="h-8 w-8 text-gray-200 mb-2" />
+                    <p className="text-xs text-gray-400">No notifications yet</p>
+                  </div>
+                ) : (
+                  notifications.map((notif) => (
+                    <button
+                      key={notif.id}
+                      onClick={() => {
+                        if (notif.link) router.push(notif.link);
+                        setNotifOpen(false);
+                      }}
+                      className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50 border-b border-gray-50 last:border-0 ${!notif.read ? "bg-green-50/30" : ""}`}
+                    >
+                      <div className="flex-shrink-0 mt-0.5">
+                        {notif.image ? (
+                          <Avatar className="h-9 w-9 border border-gray-100">
+                            <AvatarImage src={notif.image} />
+                            <AvatarFallback className="bg-gradient-to-br from-green-50 to-green-100 text-green-700 font-semibold text-[10px]">
+                              {notif.type === "message" ? <MessageSquare className="h-4 w-4" /> : <Package className="h-4 w-4" />}
+                            </AvatarFallback>
+                          </Avatar>
+                        ) : (
+                          <div className={`h-9 w-9 rounded-full flex items-center justify-center ${notif.type === "message" ? "bg-blue-50 text-blue-600" : "bg-amber-50 text-amber-600"}`}>
+                            {notif.type === "message" ? <MessageSquare className="h-4 w-4" /> : <Package className="h-4 w-4" />}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <p className={`text-xs truncate ${!notif.read ? "font-bold text-gray-900" : "font-medium text-gray-700"}`}>
+                            {notif.title}
+                          </p>
+                          <span className="text-[9px] text-gray-400 flex-shrink-0">{formatNotifTime(notif.timestamp)}</span>
+                        </div>
+                        <p className="text-[11px] text-gray-500 truncate mt-0.5">{notif.description}</p>
+                      </div>
+                      {!notif.read && (
+                        <div className="flex-shrink-0 mt-2">
+                          <div className="h-2 w-2 rounded-full bg-green-500" />
+                        </div>
+                      )}
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="flex justify-end gap-4 p-4">
           <GoogleTranslate />
           <LanguageSwitcher />
@@ -132,3 +234,4 @@ export function Navbar() {
     </header>
   );
 }
+
