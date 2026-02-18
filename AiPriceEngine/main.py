@@ -40,6 +40,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from engine import HybridPredictor, AgronomicAdvisoryLayer
 from data_manager import LivePriceInformer, WeatherClient
 from simulation_engine import create_simulation_router
+from federatedlearning import FederatedPricePredictor, SUPPORTED_CROPS
 
 logger = logging.getLogger("agrostack")
 logging.basicConfig(level=logging.INFO)
@@ -98,6 +99,7 @@ signer: RSASigner = RSASigner()
 live_informer: LivePriceInformer = LivePriceInformer()
 weather_client: WeatherClient = WeatherClient()
 advisor: AgronomicAdvisoryLayer = AgronomicAdvisoryLayer()
+fed_predictor: FederatedPricePredictor = FederatedPricePredictor()
 
 
 @asynccontextmanager
@@ -308,3 +310,23 @@ async def public_key():
         "key_format": "PEM",
         "public_key": signer.export_public_key_pem(),
     }
+
+
+@app.get("/federated/{crop_id}", tags=["Federated Learning"])
+async def federated_prediction(crop_id: str):
+    """Run simulated federated learning pipeline and return 30-day regional forecasts.
+
+    Supported crops: rubber, tea, coffee, mango, banana.
+    """
+    crop = crop_id.strip().lower()
+    if crop not in SUPPORTED_CROPS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported crop '{crop_id}'. Choose from: {SUPPORTED_CROPS}",
+        )
+    try:
+        result = fed_predictor.run_federated_pipeline(crop)
+    except Exception as exc:
+        logger.exception("Federated pipeline failed for %s", crop_id)
+        raise HTTPException(status_code=500, detail=str(exc))
+    return result
