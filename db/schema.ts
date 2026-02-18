@@ -133,3 +133,4 @@ export const inventory = pgTable("inventory", {
 			name: "inventory_user_id_fkey"
 		}).onDelete("cascade"),
 ]);
+
