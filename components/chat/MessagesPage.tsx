@@ -1,370 +1,454 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Search, Send, Phone, Video, MoreVertical, Check, CheckCheck, Smile } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import {
+    Search,
+    Send,
+    Check,
+    CheckCheck,
+    MessageSquare,
+    ArrowLeft,
+    UserPlus,
+} from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
+import { trpc } from "@/trpc/client";
+import { useDebounce } from "@/lib/hooks/use-debounce";
 
-// ── Mock Data ──────────────────────────────────────────────
-const MOCK_USERS = [
-    {
-        id: "1",
-        name: "Ravi Kumar",
-        image: "",
-        role: "farmer",
-        online: true,
-        lastMessage: "The organic tomatoes are freshly harvested today!",
-        lastMessageTime: "09:30",
-        unread: 2,
-    },
-    {
-        id: "2",
-        name: "Priya Sharma",
-        image: "",
-        role: "buyer",
-        online: true,
-        lastMessage: "Can I get 50kg of basmati rice?",
-        lastMessageTime: "08:45",
-        unread: 0,
-    },
-    {
-        id: "3",
-        name: "Arun Patel",
-        image: "",
-        role: "farmer",
-        online: false,
-        lastMessage: "Will deliver the mangoes by tomorrow morning.",
-        lastMessageTime: "Yesterday",
-        unread: 0,
-    },
-    {
-        id: "4",
-        name: "Meera Nair",
-        image: "",
-        role: "buyer",
-        online: false,
-        lastMessage: "Thank you for the fresh vegetables!",
-        lastMessageTime: "Yesterday",
-        unread: 0,
-    },
-    {
-        id: "5",
-        name: "Suresh Reddy",
-        image: "",
-        role: "farmer",
-        online: true,
-        lastMessage: "Yes, we have turmeric in stock",
-        lastMessageTime: "Mon",
-        unread: 1,
-    },
-    {
-        id: "6",
-        name: "Lakshmi Devi",
-        image: "",
-        role: "farmer",
-        online: false,
-        lastMessage: "You: Great, I'll take 20kg then",
-        lastMessageTime: "Mon",
-        unread: 0,
-    },
-];
-
-type MockMessage = {
+type Message = {
     id: string;
+    senderId: string;
+    receiverId: string;
     content: string;
-    time: string;
-    isMe: boolean;
-    status: "sent" | "delivered" | "read";
+    createdAt: string;
+    read: boolean;
 };
 
-const MOCK_MESSAGES: Record<string, MockMessage[]> = {
-    "1": [
-        { id: "m1", content: "Hi Ravi, do you have organic tomatoes available?", time: "09:20", isMe: true, status: "read" },
-        { id: "m2", content: "Yes! We just harvested a fresh batch this morning 🍅", time: "09:22", isMe: false, status: "read" },
-        { id: "m3", content: "How much per kg?", time: "09:25", isMe: true, status: "read" },
-        { id: "m4", content: "₹60 per kg for organic. Minimum order 5kg.", time: "09:27", isMe: false, status: "read" },
-        { id: "m5", content: "I'll take 10kg. Can you deliver today?", time: "09:28", isMe: true, status: "read" },
-        { id: "m6", content: "The organic tomatoes are freshly harvested today!", time: "09:30", isMe: false, status: "delivered" },
-    ],
-    "2": [
-        { id: "m1", content: "Hi Priya! How can I help you?", time: "08:30", isMe: true, status: "read" },
-        { id: "m2", content: "I'm looking for premium basmati rice", time: "08:32", isMe: false, status: "read" },
-        { id: "m3", content: "We have 1121 basmati at ₹120/kg", time: "08:35", isMe: true, status: "read" },
-        { id: "m4", content: "Can I get 50kg of basmati rice?", time: "08:45", isMe: false, status: "read" },
-    ],
-    "3": [
-        { id: "m1", content: "When can you deliver the Alphonso mangoes?", time: "14:00", isMe: true, status: "read" },
-        { id: "m2", content: "Will deliver the mangoes by tomorrow morning.", time: "14:15", isMe: false, status: "read" },
-    ],
-    "4": [
-        { id: "m1", content: "Your order has been delivered!", time: "10:00", isMe: true, status: "read" },
-        { id: "m2", content: "Thank you for the fresh vegetables!", time: "10:05", isMe: false, status: "read" },
-    ],
-    "5": [
-        { id: "m1", content: "Do you have organic turmeric?", time: "11:00", isMe: true, status: "read" },
-        { id: "m2", content: "Yes, we have turmeric in stock", time: "11:10", isMe: false, status: "delivered" },
-    ],
-    "6": [
-        { id: "m1", content: "We have fresh curry leaves at ₹30/bundle", time: "09:00", isMe: false, status: "read" },
-        { id: "m2", content: "Sounds good! What about coriander?", time: "09:15", isMe: true, status: "read" },
-        { id: "m3", content: "Coriander is ₹20/bundle, organic", time: "09:20", isMe: false, status: "read" },
-        { id: "m4", content: "Great, I'll take 20kg then", time: "09:25", isMe: true, status: "delivered" },
-    ],
+type Conversation = {
+    id: string;
+    name: string;
+    image: string | null;
+    role: string | null;
+    lastMessage?: string;
+    lastMessageTime?: string;
+    unread: number;
 };
 
-// ── Component ──────────────────────────────────────────────
 export default function MessagesPage() {
-    const [selectedUser, setSelectedUser] = useState<(typeof MOCK_USERS)[0] | null>(null);
-    const [messageInput, setMessageInput] = useState("");
+    const [selectedUser, setSelectedUser] = useState<Conversation | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
-    const [localMessages, setLocalMessages] = useState(MOCK_MESSAGES);
-    const scrollRef = useRef<HTMLDivElement>(null);
+    const [inputValue, setInputValue] = useState("");
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const [isTyping, setIsTyping] = useState(false);
+
+    // Debounce search query to avoid too many requests
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
 
     useEffect(() => {
-        if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        }
-    }, [selectedUser, localMessages]);
+        const timer = setTimeout(() => setDebouncedSearchQuery(searchQuery), 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
 
-    const filteredUsers = MOCK_USERS.filter((u) =>
-        u.name.toLowerCase().includes(searchQuery.toLowerCase())
+    const utils = trpc.useUtils();
+
+    useEffect(() => {
+        fetch("/api/auth/get-session", { credentials: "include" })
+            .then((r) => r.json())
+            .then((data) => {
+                if (data?.user?.id) setCurrentUserId(data.user.id);
+            })
+            .catch(() => { });
+    }, []);
+
+    const { data: conversations = [], isLoading: loadingConversations } =
+        trpc.messaging.getConversations.useQuery(undefined, {
+            refetchInterval: 1000,
+            refetchIntervalInBackground: true,
+        });
+
+    // Search for new users who are NOT in conversations
+    const { data: searchResults = [], isLoading: isSearching } =
+        trpc.messaging.searchUsers.useQuery(
+            { query: debouncedSearchQuery },
+            {
+                enabled: debouncedSearchQuery.length > 0,
+            }
+        );
+
+    const { data: chatMessages = [], isLoading: loadingMessages } =
+        trpc.messaging.getMessages.useQuery(
+            { otherUserId: selectedUser?.id ?? "" },
+            {
+                enabled: !!selectedUser,
+                refetchInterval: 1000,
+                refetchIntervalInBackground: true,
+            }
+        );
+
+    // Poll for selected user's status (typing)
+    const { data: userStatus } = trpc.messaging.getUserStatus.useQuery(
+        { userId: selectedUser?.id ?? "" },
+        {
+            enabled: !!selectedUser,
+            refetchInterval: 2000,
+        }
     );
 
-    const handleSend = () => {
-        if (!messageInput.trim() || !selectedUser) return;
-        const newMsg: MockMessage = {
-            id: `m-${Date.now()}`,
-            content: messageInput,
-            time: new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false }),
-            isMe: true,
-            status: "sent",
-        };
-        setLocalMessages((prev) => ({
-            ...prev,
-            [selectedUser.id]: [...(prev[selectedUser.id] || []), newMsg],
-        }));
-        setMessageInput("");
+    // Handle my typing status
+    const setTypingMutation = trpc.messaging.setTypingStatus.useMutation();
+    const debouncedTyping = useDebounce(inputValue, 500);
+
+    useEffect(() => {
+        if (!selectedUser) return;
+        if (inputValue.length > 0 && !isTyping) {
+            setIsTyping(true);
+            setTypingMutation.mutate({ isTyping: true });
+        } else if (inputValue.length === 0 && isTyping) {
+            setIsTyping(false);
+            setTypingMutation.mutate({ isTyping: false });
+        }
+    }, [inputValue, selectedUser, isTyping]);
+
+    // Cleanup typing status on debounce (user stopped typing)
+    useEffect(() => {
+        if (isTyping && inputValue.length > 0) {
+            const timer = setTimeout(() => {
+                setIsTyping(false);
+                setTypingMutation.mutate({ isTyping: false });
+            }, 2000);
+            return () => clearTimeout(timer);
+        }
+    }, [debouncedTyping]);
+
+    const sendMessageMutation = trpc.messaging.sendMessage.useMutation({
+        onSettled: () => {
+            utils.messaging.getMessages.invalidate({
+                otherUserId: selectedUser?.id ?? "",
+            });
+            utils.messaging.getConversations.invalidate();
+            setTypingMutation.mutate({ isTyping: false });
+            setIsTyping(false);
+        },
+    });
+
+    const markAsReadMutation = trpc.messaging.markAsRead.useMutation({
+        onSuccess: () => {
+            utils.messaging.getConversations.invalidate();
+        },
+    });
+
+    useEffect(() => {
+        if (selectedUser && selectedUser.unread > 0) {
+            markAsReadMutation.mutate({ otherUserId: selectedUser.id });
+        }
+    }, [selectedUser?.id]);
+
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [chatMessages]);
+
+    const handleSend = useCallback(() => {
+        if (!inputValue.trim() || !selectedUser) return;
+
+        sendMessageMutation.mutate({
+            receiverId: selectedUser.id,
+            content: inputValue.trim(),
+        });
+        setInputValue("");
+        inputRef.current?.focus();
+    }, [inputValue, selectedUser, sendMessageMutation]);
+
+    // Helpers
+    const getInitials = (name: string | null) => {
+        if (!name) return "?";
+        return name
+            .split(" ")
+            .map((w) => w[0])
+            .join("")
+            .toUpperCase()
+            .slice(0, 2);
     };
 
+    const formatTime = (dateStr?: string) => {
+        if (!dateStr) return "";
+        const d = new Date(dateStr);
+        const now = new Date();
+        const diff = now.getTime() - d.getTime();
+        if (diff < 86400000)
+            return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        if (diff < 604800000)
+            return d.toLocaleDateString([], { weekday: "short" });
+        return d.toLocaleDateString([], { month: "short", day: "numeric" });
+    };
+
+    const isMyMessage = (msg: Message) => msg.senderId === currentUserId;
+
+    // Filter conversations locally
+    const filteredConversations = conversations.filter((c) =>
+        c.name?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    // Filter search results to exclude existing conversations
+    const newUsers = searchResults.filter(
+        (u) => !conversations.some((c) => c.id === u.id)
+    );
+
     return (
-        <main className="flex-1 overflow-hidden p-4 md:p-6">
-            <div className="flex h-[calc(100vh-7rem)] overflow-hidden rounded-2xl border border-[#e8f0e4] bg-white shadow-sm">
-                {/* ── Left Panel: Conversations ── */}
-                <div
-                    className={cn(
-                        "flex w-full flex-col border-r border-[#e8f0e4] md:w-80 lg:w-96",
-                        selectedUser ? "hidden md:flex" : "flex"
-                    )}
-                >
-                    {/* Header */}
-                    <div className="border-b border-[#e8f0e4] p-4">
-                        <h1 className="text-xl font-bold text-[#1a2e1a]">Messages</h1>
-                        <p className="text-xs text-[#5c7a5c]">Chat with farmers & buyers</p>
+        <div className="flex h-[calc(100vh-4rem)] flex-1 overflow-hidden border-t border-gray-200 bg-white shadow-sm">
+            {/* Sidebar */}
+            <div
+                className={`${selectedUser ? "hidden md:flex" : "flex"
+                    } w-full md:w-64 lg:w-72 flex-col shrink-0 border-r border-gray-200 bg-gray-50/30`}
+            >
+                {/* Apps Header style */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-white/50 backdrop-blur-sm sticky top-0 z-10 h-[60px]">
+                    <h2 className="text-base font-bold text-gray-900 tracking-tight">Messages</h2>
+                </div>
+
+                <div className="p-3 border-b border-gray-100/50">
+                    <div className="relative group">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                        <input
+                            type="text"
+                            placeholder="Search..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full pl-8 pr-3 py-1.5 rounded-md bg-white border border-gray-200 text-xs placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-green-500/20 focus:border-green-500 transition-all shadow-sm"
+                        />
                     </div>
+                </div>
 
-                    {/* Search */}
-                    <div className="p-3">
-                        <div className="flex items-center gap-2 rounded-xl bg-[#f4f8f2] px-3 py-2">
-                            <Search className="h-4 w-4 text-[#7ca87c]" />
-                            <input
-                                type="text"
-                                placeholder="Search conversations..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="flex-1 bg-transparent text-sm text-[#1a2e1a] outline-none placeholder:text-[#a3bfa3]"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Conversation List */}
-                    <div className="flex-1 overflow-y-auto">
-                        {filteredUsers.map((user) => (
-                            <button
-                                key={user.id}
-                                onClick={() => setSelectedUser(user)}
-                                className={cn(
-                                    "flex w-full items-center gap-3 px-4 py-3 text-left transition-all duration-150",
-                                    selectedUser?.id === user.id
-                                        ? "bg-[#2d6a4f]/5 border-r-2 border-[#2d6a4f]"
-                                        : "hover:bg-[#f4f8f2]"
-                                )}
-                            >
-                                <div className="relative">
-                                    <Avatar className="h-11 w-11 border-2 border-white shadow-sm">
-                                        <AvatarImage src={user.image} />
-                                        <AvatarFallback className="bg-gradient-to-br from-[#2d6a4f] to-[#52b788] text-sm font-bold text-white">
-                                            {user.name.split(" ").map((n) => n[0]).join("")}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                    {user.online && (
-                                        <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-[#52b788]" />
-                                    )}
-                                </div>
-
-                                <div className="flex-1 overflow-hidden">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm font-semibold text-[#1a2e1a] truncate">{user.name}</span>
-                                        <span className="text-[10px] text-[#7ca87c]">{user.lastMessageTime}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between mt-0.5">
-                                        <p className="truncate text-xs text-[#5c7a5c]">{user.lastMessage}</p>
-                                        {user.unread > 0 && (
-                                            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#2d6a4f] px-1.5 text-[10px] font-bold text-white">
-                                                {user.unread}
+                <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-1 min-h-0 custom-scrollbar">
+                    {/* Conversations List */}
+                    {filteredConversations.length > 0 && (
+                        <div className="space-y-0.5 mt-2">
+                            <div className="px-2 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                                Conversations
+                            </div>
+                            {filteredConversations.map((conv) => (
+                                <button
+                                    key={conv.id}
+                                    onClick={() => setSelectedUser(conv)}
+                                    className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg transition-all duration-200 ${selectedUser?.id === conv.id
+                                        ? "bg-white shadow-sm ring-1 ring-gray-200"
+                                        : "hover:bg-gray-100/80"
+                                        }`}
+                                >
+                                    <div className="relative flex-shrink-0">
+                                        <Avatar className="h-8 w-8 border border-gray-100">
+                                            <AvatarImage src={conv.image ?? undefined} />
+                                            <AvatarFallback className="bg-gradient-to-br from-green-50 to-green-100 text-green-700 font-semibold text-[10px]">
+                                                {getInitials(conv.name)}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        {conv.unread > 0 && (
+                                            <span className="absolute -top-0.5 -right-0.5 h-3 min-w-[12px] flex items-center justify-center bg-green-500 rounded-full ring-1.5 ring-white">
+                                                <span className="text-[8px] font-bold text-white px-0.5">
+                                                    {conv.unread}
+                                                </span>
                                             </span>
                                         )}
                                     </div>
-                                </div>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* ── Right Panel: Chat ── */}
-                <div
-                    className={cn(
-                        "flex flex-1 flex-col",
-                        !selectedUser ? "hidden md:flex" : "flex"
-                    )}
-                >
-                    {selectedUser ? (
-                        <>
-                            {/* Chat Header */}
-                            <div className="flex items-center justify-between border-b border-[#e8f0e4] px-5 py-3">
-                                <div className="flex items-center gap-3">
-                                    <button
-                                        onClick={() => setSelectedUser(null)}
-                                        className="mr-1 text-[#5c7a5c] hover:text-[#1a2e1a] md:hidden"
-                                    >
-                                        ←
-                                    </button>
-                                    <div className="relative">
-                                        <Avatar className="h-10 w-10 border-2 border-white shadow-sm">
-                                            <AvatarImage src={selectedUser.image} />
-                                            <AvatarFallback className="bg-gradient-to-br from-[#2d6a4f] to-[#52b788] text-sm font-bold text-white">
-                                                {selectedUser.name.split(" ").map((n) => n[0]).join("")}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        {selectedUser.online && (
-                                            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#52b788]" />
-                                        )}
-                                    </div>
-                                    <div>
-                                        <h2 className="text-sm font-bold text-[#1a2e1a]">{selectedUser.name}</h2>
-                                        <p className="text-[11px] text-[#52b788]">
-                                            {selectedUser.online ? "Online" : "Offline"}
+                                    <div className="flex-1 min-w-0 text-left">
+                                        <div className="flex justify-between items-baseline mb-0.5">
+                                            <span className="font-medium text-xs text-gray-900 truncate">
+                                                {conv.name}
+                                            </span>
+                                            {conv.lastMessageTime && (
+                                                <span className="text-[9px] text-gray-400 flex-shrink-0 ml-1.5">
+                                                    {formatTime(conv.lastMessageTime)}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className={`text-[11px] truncate ${conv.unread > 0 ? "font-medium text-gray-900" : "text-gray-500"}`}>
+                                            {conv.lastMessage || "No messages"}
                                         </p>
                                     </div>
-                                </div>
+                                </button>
+                            ))}
+                        </div>
+                    )}
 
-                                <div className="flex items-center gap-1">
-                                    <button className="rounded-lg p-2 text-[#5c7a5c] hover:bg-[#f4f8f2] hover:text-[#2d6a4f] transition-colors">
-                                        <Phone className="h-4 w-4" />
-                                    </button>
-                                    <button className="rounded-lg p-2 text-[#5c7a5c] hover:bg-[#f4f8f2] hover:text-[#2d6a4f] transition-colors">
-                                        <Video className="h-4 w-4" />
-                                    </button>
-                                    <button className="rounded-lg p-2 text-[#5c7a5c] hover:bg-[#f4f8f2] hover:text-[#2d6a4f] transition-colors">
-                                        <MoreVertical className="h-4 w-4" />
-                                    </button>
+                    {/* New Users Search Results */}
+                    {searchQuery && newUsers.length > 0 && (
+                        <div className="space-y-0.5 mt-3">
+                            <div className="px-2 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <UserPlus className="h-3 w-3" />
+                                More Users
+                            </div>
+                            {newUsers.map((user) => (
+                                <button
+                                    key={user.id}
+                                    onClick={() => setSelectedUser({ ...user, unread: 0 })}
+                                    className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg transition-all duration-200 ${selectedUser?.id === user.id
+                                        ? "bg-white shadow-sm ring-1 ring-gray-200"
+                                        : "hover:bg-gray-100/80"
+                                        }`}
+                                >
+                                    <Avatar className="h-8 w-8 border border-gray-100">
+                                        <AvatarImage src={user.image ?? undefined} />
+                                        <AvatarFallback className="bg-gray-100 text-gray-600 font-medium text-[10px]">
+                                            {getInitials(user.name)}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1 min-w-0 text-left">
+                                        <span className="font-medium text-xs text-gray-900 truncate block">
+                                            {user.name}
+                                        </span>
+                                        <span className="text-[10px] text-gray-500 capitalize">
+                                            {user.role}
+                                        </span>
+                                    </div>
+                                    <div className="p-1 rounded-full bg-gray-50 text-gray-400 group-hover:bg-green-50 group-hover:text-green-600 transition-colors">
+                                        <MessageSquare className="h-3.5 w-3.5" />
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Empty State */}
+                    {!loadingConversations &&
+                        !isSearching &&
+                        filteredConversations.length === 0 &&
+                        newUsers.length === 0 && (
+                            <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
+                                <div className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center mb-2">
+                                    <Search className="h-5 w-5 text-gray-300" />
+                                </div>
+                                <h3 className="text-xs font-medium text-gray-900">No results found</h3>
+                                <p className="text-[10px] text-gray-500 max-w-[150px] mt-1">
+                                    No conversations found for "{searchQuery}"
+                                </p>
+                            </div>
+                        )}
+                </div>
+            </div>
+
+            {/* Chat Area */}
+            <div className={`${selectedUser ? "flex" : "hidden md:flex"} flex-1 flex-col bg-white overflow-hidden relative`}>
+                {selectedUser ? (
+                    <>
+                        <div className="flex items-center gap-3 px-4 py-2 border-b border-gray-100 bg-white/80 backdrop-blur-sm sticky top-0 z-20 h-[60px]">
+                            <button
+                                onClick={() => setSelectedUser(null)}
+                                className="md:hidden p-1.5 -ml-1 rounded-full hover:bg-gray-50 text-gray-500"
+                            >
+                                <ArrowLeft className="h-4 w-4" />
+                            </button>
+                            <Avatar className="h-8 w-8 ring-1 ring-gray-100">
+                                <AvatarImage src={selectedUser.image ?? undefined} />
+                                <AvatarFallback className="bg-green-100 text-green-700 font-semibold text-xs">
+                                    {getInitials(selectedUser.name)}
+                                </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold text-gray-900 text-sm truncate">
+                                    {selectedUser.name}
+                                </h3>
+                                <div className="flex items-center gap-1.5 h-4">
+                                    {userStatus?.isTyping ? (
+                                        <>
+                                            <span className="flex h-1.5 w-1.5 rounded-full bg-green-500"></span>
+                                            <span className="text-[10px] text-green-600 font-medium animate-pulse">Typing...</span>
+                                        </>
+                                    ) : (
+                                        <span className="text-[10px] text-gray-500 capitalize">{selectedUser.role ?? "User"}</span>
+                                    )}
                                 </div>
                             </div>
+                        </div>
 
-                            {/* Messages */}
-                            <div className="flex-1 overflow-y-auto px-5 py-4" ref={scrollRef}>
-                                <div className="flex flex-col gap-3">
-                                    {(localMessages[selectedUser.id] || []).map((msg) => (
+                        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4 bg-gray-50/30 scroll-smooth">
+                            {loadingMessages ? (
+                                <div className="flex items-center justify-center h-full">
+                                    <div className="h-5 w-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+                                </div>
+                            ) : chatMessages.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center h-full text-center px-4">
+                                    <div className="h-16 w-16 rounded-full bg-blue-50/50 flex items-center justify-center mb-3">
+                                        <MessageSquare className="h-8 w-8 text-blue-400" />
+                                    </div>
+                                    <h3 className="text-gray-900 font-medium text-sm mb-1">Say Hello! 👋</h3>
+                                    <p className="text-xs text-gray-500 max-w-xs">
+                                        Start a conversation with <span className="font-medium text-gray-700">{selectedUser.name}</span>
+                                    </p>
+                                </div>
+                            ) : (
+                                chatMessages.map((msg) => {
+                                    const mine = isMyMessage(msg);
+                                    return (
                                         <div
                                             key={msg.id}
-                                            className={cn("flex", msg.isMe ? "justify-end" : "justify-start")}
+                                            className={`flex ${mine ? "justify-end" : "justify-start"}`}
                                         >
                                             <div
-                                                className={cn(
-                                                    "relative max-w-[75%] rounded-2xl px-4 py-2.5 text-sm shadow-sm",
-                                                    msg.isMe
-                                                        ? "bg-gradient-to-br from-[#2d6a4f] to-[#40916c] text-white rounded-br-md"
-                                                        : "bg-[#f4f8f2] text-[#1a2e1a] rounded-bl-md"
-                                                )}
+                                                className={`max-w-[75%] sm:max-w-[60%] px-3 py-2 rounded-2xl shadow-sm text-sm relative group transition-all leading-relaxed
+                                                ${mine
+                                                        ? "bg-green-600 text-white rounded-tr-sm"
+                                                        : "bg-white text-gray-800 border border-gray-100 rounded-tl-sm"
+                                                    }`}
                                             >
-                                                <p className="leading-relaxed">{msg.content}</p>
-                                                <div
-                                                    className={cn(
-                                                        "mt-1 flex items-center justify-end gap-1",
-                                                        msg.isMe ? "text-white/60" : "text-[#7ca87c]"
+                                                <p className="whitespace-pre-wrap text-[13px]">
+                                                    {msg.content}
+                                                </p>
+                                                <div className={`flex items-center gap-1 mt-0.5 ${mine ? "justify-end opacity-90" : "opacity-50"}`}>
+                                                    <span className="text-[9px] font-medium">
+                                                        {formatTime(msg.createdAt)}
+                                                    </span>
+                                                    {mine && (
+                                                        msg.read ? <CheckCheck className="h-2.5 w-2.5" /> : <Check className="h-2.5 w-2.5" />
                                                     )}
-                                                >
-                                                    <span className="text-[10px]">{msg.time}</span>
-                                                    {msg.isMe &&
-                                                        (msg.status === "read" ? (
-                                                            <CheckCheck className="h-3 w-3 text-[#b7e4c7]" />
-                                                        ) : (
-                                                            <Check className="h-3 w-3" />
-                                                        ))}
                                                 </div>
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Input Area */}
-                            <div className="border-t border-[#e8f0e4] px-4 py-3">
-                                <form
-                                    onSubmit={(e) => {
-                                        e.preventDefault();
-                                        handleSend();
-                                    }}
-                                    className="flex items-center gap-2"
-                                >
-                                    <button
-                                        type="button"
-                                        className="rounded-lg p-2 text-[#5c7a5c] hover:bg-[#f4f8f2] hover:text-[#2d6a4f] transition-colors"
-                                    >
-                                        <Smile className="h-5 w-5" />
-                                    </button>
-                                    <input
-                                        type="text"
-                                        value={messageInput}
-                                        onChange={(e) => setMessageInput(e.target.value)}
-                                        placeholder="Your message..."
-                                        className="flex-1 rounded-xl border border-[#e8f0e4] bg-[#f4f8f2] px-4 py-2.5 text-sm text-[#1a2e1a] outline-none transition-all focus:border-[#2d6a4f]/30 focus:ring-2 focus:ring-[#2d6a4f]/10 placeholder:text-[#a3bfa3]"
-                                    />
-                                    <button
-                                        type="submit"
-                                        disabled={!messageInput.trim()}
-                                        className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#2d6a4f] to-[#52b788] text-white shadow-md transition-all duration-200 hover:shadow-lg hover:scale-105 active:scale-95 disabled:opacity-40 disabled:shadow-none disabled:hover:scale-100"
-                                    >
-                                        <Send className="h-4 w-4" />
-                                    </button>
-                                </form>
-                            </div>
-                        </>
-                    ) : (
-                        /* Empty State */
-                        <div className="flex flex-1 flex-col items-center justify-center p-8 text-center">
-                            <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-[#d8f3dc] to-[#b7e4c7] shadow-sm">
-                                <svg
-                                    className="h-10 w-10 text-[#2d6a4f]"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    strokeWidth={1.5}
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z"
-                                    />
-                                </svg>
-                            </div>
-                            <h3 className="text-lg font-bold text-[#1a2e1a]">Your Messages</h3>
-                            <p className="mt-1.5 max-w-xs text-sm text-[#5c7a5c]">
-                                Select a conversation to start chatting with farmers and buyers.
-                            </p>
+                                    );
+                                })
+                            )}
+                            <div ref={messagesEndRef} />
                         </div>
-                    )}
-                </div>
+
+                        <div className="p-3 bg-white border-t border-gray-100">
+                            <div className="flex items-center gap-2 max-w-4xl mx-auto">
+                                <div className="flex-1 relative">
+                                    <input
+                                        ref={inputRef}
+                                        type="text"
+                                        placeholder="Type your message..."
+                                        value={inputValue}
+                                        onChange={(e) => setInputValue(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                                e.preventDefault();
+                                                handleSend();
+                                            }
+                                        }}
+                                        className="w-full px-4 py-2.5 rounded-lg bg-gray-50 border border-gray-200 text-sm focus:outline-none focus:ring-1 focus:ring-green-500/20 focus:border-green-500 transition-all placeholder:text-gray-400"
+                                    />
+                                </div>
+                                <button
+                                    onClick={handleSend}
+                                    disabled={!inputValue.trim()}
+                                    className="h-10 w-10 flex items-center justify-center rounded-lg bg-green-600 text-white hover:bg-green-700 hover:shadow-md disabled:opacity-50 disabled:hover:shadow-none disabled:cursor-not-allowed transition-all active:scale-95"
+                                >
+                                    <Send className="h-4 w-4" />
+                                </button>
+                            </div>
+                        </div>
+                    </>
+                ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-center px-4 bg-gray-50/30">
+                        <div className="h-20 w-20 rounded-2xl bg-white shadow-lg shadow-green-900/5 flex items-center justify-center mb-4 transform -rotate-3">
+                            <MessageSquare className="h-10 w-10 text-green-500" />
+                        </div>
+                        <h1 className="text-xl font-bold text-gray-900 mb-2">Welcome to Messages</h1>
+                        <p className="text-sm text-gray-500 max-w-sm mx-auto leading-relaxed">
+                            Select an existing conversation or search for a user to start chatting.
+                        </p>
+                    </div>
+                )}
             </div>
-        </main>
+        </div>
     );
 }
