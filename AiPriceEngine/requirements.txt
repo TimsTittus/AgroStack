@@ -17,3 +17,6 @@ python-dotenv>=1.0.0
 
 # Security (RSA digital signatures)
 cryptography>=41.0.0
+
+# Database (PostgreSQL for MCP inventory)
+psycopg2-binary>=2.9.9
