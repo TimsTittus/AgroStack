@@ -1,0 +1,242 @@
+{
+    "created": 1627939168,
+    "updated": 1771405265,
+    "created_date": "2021-08-02T21:19:28Z",
+    "updated_date": "2026-02-18T09:01:05Z",
+    "active": "1",
+    "index_name": "9ef84268-d588-465a-a308-a864a43d0070",
+    "org": [
+        "Ministry of Agriculture and Farmers Welfare",
+        "Department of Agriculture and Farmers Welfare"
+    ],
+    "org_type": "Central",
+    "source": "data.gov.in",
+    "title": "Current Daily Price of Various Commodities from Various Markets (Mandi)",
+    "external_ws_url": "",
+    "visualizable": "1",
+    "field": [
+        {
+            "name": "State",
+            "id": "state",
+            "type": "keyword"
+        },
+        {
+            "name": "District",
+            "id": "district",
+            "type": "keyword"
+        },
+        {
+            "name": "Market",
+            "id": "market",
+            "type": "keyword"
+        },
+        {
+            "name": "Commodity",
+            "id": "commodity",
+            "type": "keyword"
+        },
+        {
+            "name": "Variety",
+            "id": "variety",
+            "type": "keyword"
+        },
+        {
+            "name": "Grade",
+            "id": "grade",
+            "type": "keyword"
+        },
+        {
+            "name": "Arrival_Date",
+            "id": "arrival_date",
+            "type": "date"
+        },
+        {
+            "name": "Min_x0020_Price",
+            "id": "min_price",
+            "type": "double"
+        },
+        {
+            "name": "Max_x0020_Price",
+            "id": "max_price",
+            "type": "double"
+        },
+        {
+            "name": "Modal_x0020_Price",
+            "id": "modal_price",
+            "type": "double"
+        }
+    ],
+    "external_ws": 0,
+    "catalog_uuid": "6141ea17-a69d-4713-b600-0a43c8fd9a6c",
+    "sector": [
+        "Agriculture",
+        "Agricultural Marketing"
+    ],
+    "target_bucket": {
+        "field": "9ef84268-d588-465a-a308-a864a43d0070",
+        "index": "daily_mandi_price",
+        "type": "6141ea17-a69d-4713-b600-0a43c8fd9a6c"
+    },
+    "desc": "Current Daily Price of Various Commodities from Various Markets (Mandi)",
+    "field_exposed": [
+        {
+            "name": "State",
+            "id": "state.keyword",
+            "type": "keyword"
+        },
+        {
+            "name": "District",
+            "id": "district",
+            "type": "keyword"
+        },
+        {
+            "name": "Market",
+            "id": "market",
+            "type": "keyword"
+        },
+        {
+            "name": "Commodity",
+            "id": "commodity",
+            "type": "keyword"
+        },
+        {
+            "name": "Variety",
+            "id": "variety",
+            "type": "keyword"
+        },
+        {
+            "name": "Grade",
+            "id": "grade",
+            "type": "keyword"
+        }
+    ],
+    "message": "Resource lists",
+    "version": "2.2.0",
+    "status": "ok",
+    "total": 53,
+    "count": 10,
+    "limit": 10,
+    "offset": "0",
+    "records": [
+        {
+            "state": "Kerala",
+            "district": "Kottayam",
+            "market": "Pala APMC",
+            "commodity": "Bhindi(Ladies Finger)",
+            "variety": "Bhindi",
+            "grade": "FAQ",
+            "arrival_date": "18\/02\/2026",
+            "min_price": 4800,
+            "max_price": 6000,
+            "modal_price": 5400
+        },
+        {
+            "state": "Kerala",
+            "district": "Kottayam",
+            "market": "Pala APMC",
+            "commodity": "Bitter gourd",
+            "variety": "Bitter Gourd",
+            "grade": "FAQ",
+            "arrival_date": "18\/02\/2026",
+            "min_price": 4000,
+            "max_price": 5000,
+            "modal_price": 4500
+        },
+        {
+            "state": "Kerala",
+            "district": "Kottayam",
+            "market": "Pala APMC",
+            "commodity": "Cabbage",
+            "variety": "Cabbage",
+            "grade": "FAQ",
+            "arrival_date": "18\/02\/2026",
+            "min_price": 3000,
+            "max_price": 4000,
+            "modal_price": 3500
+        },
+        {
+            "state": "Kerala",
+            "district": "Kottayam",
+            "market": "Pala APMC",
+            "commodity": "Carrot",
+            "variety": "Carrot",
+            "grade": "FAQ",
+            "arrival_date": "18\/02\/2026",
+            "min_price": 3300,
+            "max_price": 5000,
+            "modal_price": 4200
+        },
+        {
+            "state": "Kerala",
+            "district": "Kottayam",
+            "market": "Kuriem  VFPCK APMC",
+            "commodity": "Cowpea(Veg)",
+            "variety": "Cowpea (Veg)",
+            "grade": "Grade A",
+            "arrival_date": "18\/02\/2026",
+            "min_price": 6100,
+            "max_price": 6300,
+            "modal_price": 6200
+        },
+        {
+            "state": "Kerala",
+            "district": "Kottayam",
+            "market": "Thalayolaparambu APMC",
+            "commodity": "Pineapple",
+            "variety": "Pine Apple",
+            "grade": "Medium",
+            "arrival_date": "18\/02\/2026",
+            "min_price": 6000,
+            "max_price": 6400,
+            "modal_price": 6200
+        },
+        {
+            "state": "Kerala",
+            "district": "Kottayam",
+            "market": "Thalayolaparambu APMC",
+            "commodity": "Beetroot",
+            "variety": "Beetroot",
+            "grade": "FAQ",
+            "arrival_date": "18\/02\/2026",
+            "min_price": 2900,
+            "max_price": 3300,
+            "modal_price": 3000
+        },
+        {
+            "state": "Kerala",
+            "district": "Kottayam",
+            "market": "Thalayolaparambu APMC",
+            "commodity": "Brinjal",
+            "variety": "Brinjal",
+            "grade": "FAQ",
+            "arrival_date": "18\/02\/2026",
+            "min_price": 3000,
+            "max_price": 3300,
+            "modal_price": 3100
+        },
+        {
+            "state": "Kerala",
+            "district": "Kottayam",
+            "market": "Thalayolaparambu APMC",
+            "commodity": "Cauliflower",
+            "variety": "Cauliflower",
+            "grade": "FAQ",
+            "arrival_date": "18\/02\/2026",
+            "min_price": 4000,
+            "max_price": 4400,
+            "modal_price": 4200
+        },
+        {
+            "state": "Kerala",
+            "district": "Kottayam",
+            "market": "Pala APMC",
+            "commodity": "Snakeguard",
+            "variety": "Other",
+            "grade": "FAQ",
+            "arrival_date": "18\/02\/2026",
+            "min_price": 4000,
+            "max_price": 4800,
+            "modal_price": 4400
+        }
+    ]
+}
