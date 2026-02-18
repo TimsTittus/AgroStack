@@ -26,10 +26,12 @@ export default async function RootLayout({
       </div>
 
       <div className="relative z-10">
-        <Navbar />
-        <div className="flex">
-          <Sidebar />
-          {children}
+        <Sidebar />
+        <div className="flex flex-col md:pl-72">
+          <Navbar />
+          <main className="flex-1">
+            {children}
+          </main>
         </div>
       </div>
     </div>

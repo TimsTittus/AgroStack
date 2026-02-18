@@ -12,15 +12,16 @@ import {
   Menu,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { AgroStackLogo } from "@/components/AgroStackLogo";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", route: "/buyer/dashboard" },
-  { icon: ShoppingBag, label: "Products", badge: "New", route: "/buyer/dashboard/products" },
-  { icon: Package, label: "Orders", badge: "5", route: "/buyer/dashboard/orders" },
+  { icon: ShoppingBag, label: "Products", route: "/buyer/dashboard/products" },
+  { icon: Package, label: "Orders", route: "/buyer/dashboard/orders" },
   { icon: CreditCard, label: "Wallet", route: "/buyer/dashboard/wallet" },
   { icon: MessageCircle, label: "Messages", route: "/buyer/dashboard/messages" },
   { icon: Settings, label: "Settings", route: "/buyer/dashboard/settings" },
@@ -31,34 +32,34 @@ export function Sidebar() {
   const [open, setOpen] = useState(false);
 
   const NavLinks = ({ onClick }: { onClick?: () => void }) => {
-    const [hovered, setHovered] = useState<string | null>(null);
-
     return (
-      <nav className="flex flex-col gap-1.5">
-        {navItems.map(({ icon: Icon, label, badge, route }) => {
-          const isActive = hovered === label || pathname === route;
+      <nav className="flex flex-col gap-1">
+        {navItems.map(({ icon: Icon, label, route }) => {
+          const isActive = pathname === route;
           return (
             <Link
               key={label}
               href={route}
               onClick={onClick}
-              onMouseEnter={() => setHovered(label)}
-              onMouseLeave={() => setHovered(null)}
               className={cn(
-                "group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200",
+                "group relative flex items-center gap-3 rounded-2xl px-2 py-2 transition-all duration-200",
                 isActive
-                  ? "bg-linear-to-r from-[#2d6a4f] to-[#40916c] text-white shadow-lg shadow-[#2d6a4f]/25"
-                  : "text-[#5c7a5c] hover:bg-[#e8f0e4] hover:text-[#1a2e1a]"
+                  ? "bg-white shadow-[0_4px_12px_rgba(0,0,0,0.05)] ring-1 ring-black/5"
+                  : "hover:bg-black/[0.03]"
               )}
             >
-              <Icon className={cn("h-4 w-4 transition-transform duration-200 group-hover:scale-110", isActive ? "text-white" : "text-[#7ca87c]")} />
-              <span className="flex-1">{label}</span>
-              {badge && (
-                <span className={cn("flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
-                  isActive ? "bg-white/25 text-white" : "bg-[#2d6a4f]/10 text-[#2d6a4f]")}>
-                  {badge}
-                </span>
-              )}
+              <div className={cn(
+                "flex h-9 w-9 items-center justify-center rounded-xl bg-white shadow-sm ring-1 ring-black/5 transition-all duration-200",
+                isActive ? "text-black" : "text-gray-400 group-hover:text-black"
+              )}>
+                <Icon className="h-5 w-5" />
+              </div>
+              <span className={cn(
+                "flex-1 text-sm font-medium transition-colors duration-200",
+                isActive ? "text-black" : "text-gray-500 group-hover:text-black"
+              )}>
+                {label}
+              </span>
             </Link>
           );
         })}
@@ -66,40 +67,39 @@ export function Sidebar() {
     );
   };
 
-  const PromoCard = () => (
-    <div className="mt-4 rounded-2xl bg-linear-to-br from-[#d8f3dc] to-[#b7e4c7] p-4">
-      <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-[#2d6a4f]/15">
-        <TrendingUp className="h-4 w-4 text-[#2d6a4f]" />
+  const SidebarHeader = () => (
+    <div className="mb-10 px-2 flex items-center gap-3">
+      <AgroStackLogo size={32} />
+      <div className="flex flex-col">
+        <span className="text-lg font-black tracking-tight text-black">AgroStack</span>
+        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">Buyer Portal</span>
       </div>
-      <h4 className="text-sm font-semibold text-[#1a2e1a]">Season Sale</h4>
-      <p className="mt-1 text-xs text-[#5c7a5c]">Get up to 25% off on fresh organic produce.</p>
-      <button className="mt-3 w-full rounded-lg bg-[#2d6a4f] py-2 text-xs font-semibold text-white hover:bg-[#1b4332]">
-        Browse Deals
-      </button>
     </div>
   );
 
   return (
     <>
-      <div className="fixed bottom-4 right-4 z-50 lg:hidden">
+      {/* Mobile Trigger */}
+      <div className="fixed bottom-6 right-6 z-50 lg:hidden">
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
-            <button className="flex h-12 w-12 items-center justify-center rounded-full bg-[#2d6a4f] text-white shadow-xl">
+            <button className="flex h-14 w-14 items-center justify-center rounded-2xl bg-black text-white shadow-2xl transition-transform hover:scale-105 active:scale-95">
               <Menu className="h-6 w-6" />
             </button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-72 bg-white p-4 pt-12">
+          <SheetContent side="left" className="w-[280px] bg-[#f3f3f3] p-6 border-none">
+            <SidebarHeader />
             <NavLinks onClick={() => setOpen(false)} />
-            <div className="mt-auto">
-              <PromoCard />
-            </div>
           </SheetContent>
         </Sheet>
       </div>
 
-      <aside className="glass-card sticky top-16 hidden h-[calc(100vh-4rem)] w-64 flex-col justify-between overflow-y-auto p-4 lg:flex">
-        <NavLinks />
-        <PromoCard />
+      {/* Desktop Sidebar */}
+      <aside className="fixed left-0 top-0 hidden h-screen w-72 flex-col bg-[#f3f3f3] border-r border-gray-100 px-6 py-8 md:flex">
+        <SidebarHeader />
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          <NavLinks />
+        </div>
       </aside>
     </>
   );
