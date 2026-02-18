@@ -18,8 +18,9 @@ import {
     Zap,
     Calendar as CalendarIcon,
 } from "lucide-react";
-import { getMarketTickerData, MarketData } from "@/lib/mandi";
+import { getMarketTickerData, MarketData, getHistoricalPrices } from "@/lib/mandi";
 import MarketRouterV2 from "@/components/MarketRouterV2";
+import { AgroStackLogo } from "@/components/AgroStackLogo";
 
 // --- Self-contained UI Components (to avoid missing dependency issues) ---
 
@@ -236,6 +237,7 @@ export default function OverviewPage() {
     const [tickerData, setTickerData] = useState<MarketData[]>(DASHBOARD_DATA.market_ticker);
     const [selectedCrop, setSelectedCrop] = useState(DASHBOARD_DATA.crop_intelligence_cards[0]);
     const [calcQuantity, setCalcQuantity] = useState(100);
+    const [historicalData, setHistoricalData] = useState<{ date: string, price: number }[]>([]);
 
     React.useEffect(() => {
         const fetchPrices = async () => {
@@ -251,10 +253,45 @@ export default function OverviewPage() {
         fetchPrices();
     }, []);
 
+    React.useEffect(() => {
+        const fetchHistory = async () => {
+            const data = await getHistoricalPrices(selectedCrop.name);
+            setHistoricalData(data);
+        };
+        fetchHistory();
+    }, [selectedCrop.name]);
+
     const getLivePriceForCrop = (name: string) => {
         const liveMatch = tickerData.find(t => t.crop_name === name || (name === "Rubber" && t.crop_name === "Rubber") || (name === "Black Pepper" && t.crop_name === "Black Pepper"));
         return liveMatch?.live_modal_price;
     };
+
+    // --- Dynamic SVG Paths for Hybrid Graph ---
+    const generatePaths = () => {
+        if (historicalData.length === 0) return { historical: "", predicted: "", currentX: 300 };
+
+        const prices = historicalData.map(h => h.price);
+        const min = Math.min(...prices) * 0.95;
+        const max = Math.max(...prices, selectedCrop.predicted_price) * 1.05;
+        const range = max - min;
+
+        const hPoints = historicalData.map((h, i) => ({
+            x: (i / (historicalData.length - 1)) * 500,
+            y: 250 - ((h.price - min) / range) * 200
+        }));
+
+        const currentX = hPoints[hPoints.length - 1].x;
+        const currentY = hPoints[hPoints.length - 1].y;
+        const targetY = 250 - ((selectedCrop.predicted_price - min) / range) * 200;
+
+        return {
+            historical: `M ${hPoints.map(p => `${p.x},${p.y}`).join(" L ")}`,
+            predicted: `M ${currentX},${currentY} L 400,${targetY} L 500,${targetY - 20}`,
+            currentX
+        };
+    };
+
+    const graphPaths = generatePaths();
 
     return (
         <div className="flex-1 bg-[#f8faf6] pb-12 min-w-0">
@@ -262,9 +299,12 @@ export default function OverviewPage() {
 
             <main className="mx-auto max-w-7xl px-4 py-6 md:py-8 sm:px-6 lg:px-8">
                 <div className="mb-8 md:mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                    <div>
-                        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-[#1b4332]">Market Intelligence</h1>
-                        <p className="mt-2 text-base md:text-lg text-gray-600">AI-driven insights for your farm portfolio.</p>
+                    <div className="flex items-center gap-6">
+                        <AgroStackLogo size={48} />
+                        <div>
+                            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-[#1b4332]">Market Intelligence</h1>
+                            <p className="mt-2 text-base md:text-lg text-gray-600">AI-driven insights for your farm portfolio.</p>
+                        </div>
                     </div>
                     <div className="flex gap-2 md:gap-3">
                         <Button variant="outline" className="flex-1 md:flex-none gap-2 border-[#d8f3dc] bg-white/50 backdrop-blur-sm px-3 md:px-4">
@@ -390,18 +430,18 @@ export default function OverviewPage() {
                                         initial={{ pathLength: 0 }}
                                         animate={{ pathLength: 1 }}
                                         transition={{ duration: 1.5 }}
-                                        d="M 0,200 L 50,190 L 100,170 L 150,180 L 200,165 L 250,150 L 300,140"
+                                        d={graphPaths.historical}
                                         fill="none" stroke="#1b4332" strokeWidth="4" strokeLinecap="round"
                                     />
                                     <motion.path
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
                                         transition={{ delay: 1 }}
-                                        d="M 300,140 L 350,120 L 400,100 L 450,80 L 500,60"
+                                        d={graphPaths.predicted}
                                         fill="none" stroke="#2d6a4f" strokeWidth="4" strokeDasharray="8,8" strokeLinecap="round"
                                     />
                                 </svg>
-                                <div className="absolute left-[60%] top-0 h-full w-px border-l-2 border-dashed border-[#2d6a4f]/30">
+                                <div className="absolute top-0 h-full w-px border-l-2 border-dashed border-[#2d6a4f]/30" style={{ left: `${(graphPaths.currentX / 500) * 100}%` }}>
                                     <div className="absolute -top-4 -translate-x-1/2 rounded-md bg-[#2d6a4f] px-2 py-0.5 text-[10px] font-bold text-white shadow-lg">Current</div>
                                 </div>
                             </div>
@@ -431,9 +471,10 @@ export default function OverviewPage() {
                                 {DASHBOARD_DATA.analytics_deep_dive.market_heatmap.locations.map((loc, i) => {
                                     const x = (loc.lon - 76.6853) * 1000 + 50;
                                     const y = (9.7118 - loc.lat) * 1000 + 50;
+                                    const liveBaseline = getLivePriceForCrop(selectedCrop.name) || selectedCrop.current_live_price;
                                     return (
                                         <div key={i} className="absolute group cursor-pointer" style={{ left: `${x}%`, top: `${y}%` }}>
-                                            <div className={`h-3 w-3 md:h-4 md:w-4 rounded-full border-2 border-white shadow-md ${loc.modal_price > selectedCrop.current_live_price ? 'bg-green-500' : 'bg-red-500'}`} />
+                                            <div className={`h-3 w-3 md:h-4 md:w-4 rounded-full border-2 border-white shadow-md ${loc.modal_price > liveBaseline ? 'bg-green-500' : 'bg-red-500'}`} />
                                             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-[#1b4332] text-white text-[9px] md:text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
                                                 {loc.mandi}: ₹{loc.modal_price}
                                             </div>
@@ -444,7 +485,10 @@ export default function OverviewPage() {
                         </CardContent>
                     </Card>
 
-                    <MarketRouterV2 cropName={selectedCrop.name} />
+                    <MarketRouterV2
+                        cropName={selectedCrop.name}
+                        baselinePrice={getLivePriceForCrop(selectedCrop.name) || selectedCrop.current_live_price}
+                    />
                 </div>
             </main>
         </div>

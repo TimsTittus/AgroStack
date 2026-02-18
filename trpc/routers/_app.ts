@@ -7,6 +7,7 @@ import { inventoryRouter } from "./inventory";
 import { facebookRouter } from "./facebook";
 import { messagingRouter } from "./messaging";
 
+import { federatedRouter } from "./fed";
 export const appRouter = createTRPCRouter({
   test: publicProcedure.query(async () => {
     return {
@@ -17,6 +18,7 @@ export const appRouter = createTRPCRouter({
   order: orderRouter,
   listings: listingsRouter,
   inventory: inventoryRouter,
+  fed: federatedRouter,
   facebook: facebookRouter,
   messaging: messagingRouter,
 });

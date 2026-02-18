@@ -26,8 +26,8 @@ export const account = pgTable("account", {
 	refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { mode: 'string' }),
 	scope: text(),
 	password: text(),
-	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
-	updatedAt: timestamp("updated_at", { mode: 'string' }).notNull(),
+	createdAt: timestamp("created_at").defaultNow().notNull(),
+	updatedAt: timestamp("updated_at").notNull(),
 }, (table) => [
 	index("account_userId_idx").using("btree", table.userId.asc().nullsLast().op("text_ops")),
 	foreignKey({
