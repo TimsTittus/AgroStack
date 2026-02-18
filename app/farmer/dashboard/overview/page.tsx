@@ -19,6 +19,7 @@ import {
     Calendar as CalendarIcon,
 } from "lucide-react";
 import { getMarketTickerData, MarketData } from "@/lib/mandi";
+import MarketRouterV2 from "@/components/MarketRouterV2";
 
 // --- Self-contained UI Components (to avoid missing dependency issues) ---
 
@@ -443,35 +444,7 @@ export default function OverviewPage() {
                         </CardContent>
                     </Card>
 
-                    <Card className="border-none bg-gradient-to-br from-[#1b4332] to-[#2d6a4f] text-white shadow-xl shadow-green-900/20 transition-transform hover:scale-[1.01]">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-base md:text-lg text-white"><Navigation className="h-4 w-4 md:h-5 md:w-5 text-[#d8f3dc]" /> Best Market Router</CardTitle>
-                        </CardHeader>
-                        <CardContent className="flex flex-col h-full">
-                            <div className="mb-6 rounded-2xl bg-white/10 p-4 md:p-6 backdrop-blur-md">
-                                <div className="mb-2 flex items-center justify-between">
-                                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#d8f3dc]/60">Top Destination</span>
-                                    <Badge className="bg-green-400 text-green-950 px-2 py-0">98% Match</Badge>
-                                </div>
-                                <h4 className="text-2xl md:text-3xl font-black text-white">Kanjirappally</h4>
-                                <div className="mt-4 flex items-end gap-2">
-                                    <p className="text-xs md:text-sm font-medium border-l-2 border-green-400 pl-3 text-white">
-                                        Est. Net Profit: <span className="text-lg md:text-xl font-black">₹182.40</span> /kg
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="mt-auto flex flex-col xs:flex-row items-center justify-between gap-4">
-                                <div className="flex items-center gap-3 w-full xs:w-auto">
-                                    <div className="rounded-lg bg-green-400/20 p-2"><ChevronRight className="h-4 w-4 text-green-300" /></div>
-                                    <div className="min-w-0">
-                                        <p className="text-[8px] md:text-[10px] font-bold uppercase tracking-widest text-green-200/50 truncate">Optimal Route</p>
-                                        <p className="text-xs md:text-sm font-semibold text-white truncate">SH-1 via Erattupetta</p>
-                                    </div>
-                                </div>
-                                <Button variant="outline" className="w-full xs:w-auto rounded-xl bg-white text-[#1b4332] h-9 md:h-10 text-xs md:text-sm">Navigate <ArrowRight className="ml-2 h-3 w-3 md:h-4 md:w-4" /></Button>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <MarketRouterV2 cropName={selectedCrop.name} />
                 </div>
             </main>
         </div>
