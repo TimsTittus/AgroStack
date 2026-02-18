@@ -211,14 +211,14 @@ export default function ListingsPage() {
           <DialogTrigger asChild>
             <Button
               id="add-listing-btn"
-              className="gap-2 rounded-xl bg-gradient-to-r from-[#2d6a4f] to-[#40916c] px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-all hover:shadow-lg hover:brightness-110"
+              className="gap-2 rounded-xl bg-linear-to-r from-[#2d6a4f] to-[#40916c] px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-all hover:shadow-lg hover:brightness-110"
             >
               <Plus className="h-4 w-4" />
               Add Listing
             </Button>
           </DialogTrigger>
 
-          <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto border-[#d8f3dc] bg-white/95 backdrop-blur-xl">
+          <DialogContent className="sm:max-w-125 max-h-[90vh] overflow-y-auto border-[#d8f3dc] bg-white/95 backdrop-blur-xl">
             <DialogHeader>
               <DialogTitle className="text-xl font-bold text-[#1a2e1a]">
                 Create New Listing
@@ -319,7 +319,7 @@ export default function ListingsPage() {
                     max={selectedInventory?.quantity || 100}
                     step={1}
                     disabled={!selectedCropId}
-                    className="py-2 [&_[data-slot=slider-track]]:bg-[#d8f3dc] [&_[data-slot=slider-range]]:bg-[#2d6a4f] [&_[data-slot=slider-thumb]]:bg-[#2d6a4f] [&_[data-slot=slider-thumb]]:border-[#2d6a4f] [&_[data-slot=slider-thumb]]:h-5 [&_[data-slot=slider-thumb]]:w-5 [&_[data-slot=slider-track]]:h-2"
+                    className="py-2 **:data-[slot=slider-track]:bg-[#d8f3dc] **:data-[slot=slider-range]:bg-[#2d6a4f] **:data-[slot=slider-thumb]:bg-[#2d6a4f] **:data-[slot=slider-thumb]:border-[#2d6a4f] **:data-[slot=slider-thumb]:h-5 **:data-[slot=slider-thumb]:w-5 **:data-[slot=slider-track]:h-2"
                   />
                   {selectedInventory && (
                     <p className="text-xs text-[#7ca87c]">
@@ -401,7 +401,7 @@ export default function ListingsPage() {
                   id="submit-listing-btn"
                   type="submit"
                   disabled={addListingMutation.isPending}
-                  className="gap-2 rounded-xl bg-gradient-to-r from-[#2d6a4f] to-[#40916c] text-white shadow-md transition-all hover:shadow-lg hover:brightness-110 disabled:opacity-50"
+                  className="gap-2 rounded-xl bg-linear-to-r from-[#2d6a4f] to-[#40916c] text-white shadow-md transition-all hover:shadow-lg hover:brightness-110 disabled:opacity-50"
                 >
                   {addListingMutation.isPending ? (
                     <>
@@ -425,7 +425,7 @@ export default function ListingsPage() {
             if (!open) recommendMutation.reset();
           }}
         >
-          <DialogContent className="sm:max-w-[480px] border-[#d8f3dc] bg-white/95 backdrop-blur-xl">
+          <DialogContent className="sm:max-w-120 border-[#d8f3dc] bg-white/95 backdrop-blur-xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-xl font-bold text-[#1a2e1a]">
                 <Lightbulb className="h-5 w-5 text-[#2d6a4f]" />
@@ -471,7 +471,7 @@ export default function ListingsPage() {
             <DialogFooter className="mt-4">
               <Button
                 onClick={() => setRecommendDialogOpen(false)}
-                className="rounded-xl bg-gradient-to-r from-[#2d6a4f] to-[#40916c] text-white"
+                className="rounded-xl bg-linear-to-r from-[#2d6a4f] to-[#40916c] text-white"
               >
                 Got it
               </Button>
@@ -560,7 +560,7 @@ export default function ListingsPage() {
         setDetailDialogOpen(open);
         if (!open) setSelectedListing(null);
       }}>
-        <DialogContent className="sm:max-w-[560px] p-0 border-[#d8f3dc] bg-white/95 backdrop-blur-xl overflow-hidden">
+        <DialogContent className="sm:max-w-140 p-0 border-[#d8f3dc] bg-white/95 backdrop-blur-xl overflow-hidden">
           {selectedListing && (() => {
             const date = new Date(selectedListing.createdAt);
             const formattedDate = date.toLocaleDateString("en-IN", {
@@ -583,7 +583,7 @@ export default function ListingsPage() {
                     fill
                     className="object-cover"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                  <div className="absolute inset-0 bg-linear-to-t from-black/50 via-transparent to-transparent" />
                   <div className="absolute bottom-4 left-5 right-5">
                     <h2 className="text-2xl font-bold text-white drop-shadow-md">
                       {selectedListing.name}
@@ -595,7 +595,7 @@ export default function ListingsPage() {
                 <div className="px-6 pb-6 pt-5 space-y-5">
                   {/* Info Grid */}
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="flex items-center gap-3 rounded-xl bg-gradient-to-br from-[#d8f3dc]/60 to-[#b7e4c7]/30 p-3.5">
+                    <div className="flex items-center gap-3 rounded-xl bg-linear-to-br from-[#d8f3dc]/60 to-[#b7e4c7]/30 p-3.5">
                       <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/80 shadow-sm">
                         <IndianRupee className="h-4 w-4 text-[#2d6a4f]" />
                       </div>
@@ -609,7 +609,7 @@ export default function ListingsPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3 rounded-xl bg-gradient-to-br from-[#fce4cc]/60 to-[#f5d0a9]/30 p-3.5">
+                    <div className="flex items-center gap-3 rounded-xl bg-linear-to-br from-[#fce4cc]/60 to-[#f5d0a9]/30 p-3.5">
                       <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/80 shadow-sm">
                         <BarChart3 className="h-4 w-4 text-[#6a4c2d]" />
                       </div>
@@ -623,7 +623,7 @@ export default function ListingsPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3 rounded-xl bg-gradient-to-br from-[#e4d8f3]/60 to-[#cbb7e4]/30 p-3.5">
+                    <div className="flex items-center gap-3 rounded-xl bg-linear-to-br from-[#e4d8f3]/60 to-[#cbb7e4]/30 p-3.5">
                       <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/80 shadow-sm">
                         <Tag className="h-4 w-4 text-[#4c2d6a]" />
                       </div>
@@ -631,13 +631,13 @@ export default function ListingsPage() {
                         <p className="text-[10px] font-medium uppercase tracking-widest text-[#7ca87c]">
                           Listing ID
                         </p>
-                        <p className="text-xs font-mono font-medium text-[#1b4332] truncate max-w-[120px]" title={selectedListing.id}>
+                        <p className="text-xs font-mono font-medium text-[#1b4332] truncate max-w-30" title={selectedListing.id}>
                           {selectedListing.id.slice(0, 8)}…
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3 rounded-xl bg-gradient-to-br from-[#cce5ff]/60 to-[#a9d4f5]/30 p-3.5">
+                    <div className="flex items-center gap-3 rounded-xl bg-linear-to-br from-[#cce5ff]/60 to-[#a9d4f5]/30 p-3.5">
                       <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/80 shadow-sm">
                         <CalendarDays className="h-4 w-4 text-[#2d4f6a]" />
                       </div>
@@ -775,10 +775,10 @@ function StatCard({
   return (
     <div className="group relative overflow-hidden rounded-2xl border border-white/60 bg-white/70 p-5 shadow-sm backdrop-blur-md transition hover:shadow-md">
       <div
-        className={`absolute -right-6 -top-6 h-24 w-24 rounded-full bg-gradient-to-br ${accent} opacity-40 blur-2xl transition group-hover:opacity-60`}
+        className={`absolute -right-6 -top-6 h-24 w-24 rounded-full bg-linear-to-br ${accent} opacity-40 blur-2xl transition group-hover:opacity-60`}
       />
       <div className="relative flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-white to-[#f0f7ed] shadow-sm">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br from-white to-[#f0f7ed] shadow-sm">
           {icon}
         </div>
         <div>
@@ -820,8 +820,8 @@ function ListingCard({
           fill
           className="object-cover transition-transform duration-700 group-hover:scale-110"
         />
-        {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+        {/* linear overlay */}
+        <div className="absolute inset-0 bg-linear-to-t from-black/30 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
         {/* Quantity Badge */}
         <div className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-[#1a2e1a] shadow-sm backdrop-blur-sm">
@@ -890,7 +890,7 @@ function LoadingSkeleton() {
 function EmptyState({ hasSearch }: { hasSearch: boolean }) {
   return (
     <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#b7e4c7] bg-white/50 py-20 backdrop-blur-sm">
-      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#d8f3dc] to-[#b7e4c7]">
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-linear-to-br from-[#d8f3dc] to-[#b7e4c7]">
         <Package className="h-8 w-8 text-[#2d6a4f]" />
       </div>
       <h3 className="mt-4 text-lg font-semibold text-[#1a2e1a]">

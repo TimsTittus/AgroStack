@@ -45,7 +45,7 @@ export function Sidebar() {
                 "group relative flex items-center gap-3 rounded-2xl px-2 py-2 transition-all duration-200",
                 isActive
                   ? "bg-white shadow-[0_4px_12px_rgba(0,0,0,0.05)] ring-1 ring-black/5"
-                  : "hover:bg-black/[0.03]"
+                  : "hover:bg-black/3"
               )}
             >
               <div className={cn(
@@ -87,7 +87,7 @@ export function Sidebar() {
               <Menu className="h-6 w-6" />
             </button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-[280px] bg-[#f3f3f3] p-6 border-none">
+          <SheetContent side="left" className="w-70 bg-[#f3f3f3] p-6 border-none">
             <SidebarHeader />
             <NavLinks onClick={() => setOpen(false)} />
           </SheetContent>
