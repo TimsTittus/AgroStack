@@ -56,7 +56,7 @@ export function TalkToAgent() {
     <>
       <motion.button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 rounded-full bg-gradient-to-r from-[#2d6a4f] to-[#40916c] px-5 py-3 text-white shadow-lg shadow-[#2d6a4f]/30 transition-all hover:shadow-xl hover:scale-105"
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 rounded-full bg-linear-to-r from-[#2d6a4f] to-[#40916c] px-5 py-3 text-white shadow-lg shadow-[#2d6a4f]/30 transition-all hover:shadow-xl hover:scale-105"
         whileHover={{ y: -2 }}
         whileTap={{ scale: 0.95 }}
       >
@@ -79,7 +79,7 @@ export function TalkToAgent() {
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-sm mx-4 rounded-3xl bg-gradient-to-b from-[#1a2e1a] to-[#0d1f0d] p-8 shadow-2xl"
+              className="relative w-full max-w-sm mx-4 rounded-3xl bg-linear-to-b from-[#1a2e1a] to-[#0d1f0d] p-8 shadow-2xl"
             >
               <button
                 onClick={handleClose}
@@ -119,7 +119,7 @@ export function TalkToAgent() {
                   />
 
                   <motion.div
-                    className="relative flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-[#40916c] to-[#2d6a4f] shadow-lg shadow-[#2d6a4f]/50"
+                    className="relative flex h-24 w-24 items-center justify-center rounded-full bg-linear-to-br from-[#40916c] to-[#2d6a4f] shadow-lg shadow-[#2d6a4f]/50"
                     animate={{
                       boxShadow: isConnected
                         ? [

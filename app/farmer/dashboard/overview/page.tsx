@@ -196,7 +196,7 @@ const IntelligenceCard = ({ crop, isSelected, onSelect, livePrice }: { crop: any
             <div className="p-4 md:p-5">
                 <div className="mb-4 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 md:gap-3">
-                        <div className={`flex h-8 w-8 md:h-10 md:w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${isSelected ? 'from-[#2d6a4f] to-[#40916c] text-white' : 'from-[#d8f3dc] to-[#b7e4c7] text-[#1b4332]'}`}>
+                        <div className={`flex h-8 w-8 md:h-10 md:w-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br ${isSelected ? 'from-[#2d6a4f] to-[#40916c] text-white' : 'from-[#d8f3dc] to-[#b7e4c7] text-[#1b4332]'}`}>
                             <Zap className="h-4 w-4 md:h-5 md:w-5" />
                         </div>
                         <div className="min-w-0">
@@ -227,7 +227,7 @@ const IntelligenceCard = ({ crop, isSelected, onSelect, livePrice }: { crop: any
                     </div>
                 </div>
             </div>
-            {isSelected && <motion.div layoutId="active-indicator" className="absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r from-[#2d6a4f] to-[#40916c]" />}
+            {isSelected && <motion.div layoutId="active-indicator" className="absolute bottom-0 left-0 h-1 w-full bg-linear-to-r from-[#2d6a4f] to-[#40916c]" />}
         </motion.div>
     );
 };
