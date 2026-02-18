@@ -1,0 +1,132 @@
+import { createTRPCRouter, protectedProcedure } from "../init";
+import { db } from "@/db";
+import { messages, orders, listings, user } from "@/db/schema";
+import { eq, and, desc, sql, or } from "drizzle-orm";
+
+export const notificationsRouter = createTRPCRouter({
+    /**
+     * Aggregates real-time notifications from existing tables:
+     * 1. Unread messages (grouped by sender)
+     * 2. Recent order updates (pending/confirmed/completed)
+     * 3. Total unread count for the badge
+     */
+    getNotifications: protectedProcedure.query(async ({ ctx }) => {
+        const userId = ctx.auth!.user.id;
+
+        // ── 1. Unread messages grouped by sender ───────────────────
+        const unreadMessages = await db
+            .select({
+                senderId: messages.senderId,
+                senderName: user.name,
+                senderImage: user.image,
+                count: sql<number>`count(*)`.as("count"),
+                latestAt: sql<string>`max(${messages.createdAt})`.as("latest_at"),
+            })
+            .from(messages)
+            .innerJoin(user, eq(messages.senderId, user.id))
+            .where(
+                and(
+                    eq(messages.receiverId, userId),
+                    eq(messages.read, false)
+                )
+            )
+            .groupBy(messages.senderId, user.name, user.image)
+            .orderBy(desc(sql`max(${messages.createdAt})`))
+            .limit(10);
+
+        // ── 2. Recent order activity (last 7 days) ─────────────────
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+        const recentOrders = await db
+            .select({
+                id: orders.id,
+                status: orders.status,
+                productName: listings.name,
+                productImage: listings.image,
+                otherUserName: user.name,
+                createdAt: orders.createdAt,
+                quantity: orders.quantity,
+                price: orders.price,
+            })
+            .from(orders)
+            .innerJoin(listings, eq(orders.productId, listings.id))
+            .innerJoin(
+                user,
+                // Show the OTHER party's name (if I'm buyer, show farmer; if I'm farmer, show buyer)
+                or(
+                    and(eq(orders.buyerId, userId), eq(user.id, orders.farmerId)),
+                    and(eq(orders.farmerId, userId), eq(user.id, orders.buyerId))
+                )!
+            )
+            .where(
+                and(
+                    or(eq(orders.buyerId, userId), eq(orders.farmerId, userId)),
+                    sql`${orders.createdAt} >= ${sevenDaysAgo}`
+                )
+            )
+            .orderBy(desc(orders.createdAt))
+            .limit(10);
+
+        // ── 3. Build notification items ────────────────────────────
+        type NotificationItem = {
+            id: string;
+            type: "message" | "order";
+            title: string;
+            description: string;
+            image: string | null;
+            timestamp: string;
+            read: boolean;
+            link?: string;
+        };
+
+        const notifications: NotificationItem[] = [];
+
+        // Message notifications
+        for (const msg of unreadMessages) {
+            notifications.push({
+                id: `msg-${msg.senderId}`,
+                type: "message",
+                title: `New message${Number(msg.count) > 1 ? "s" : ""} from ${msg.senderName}`,
+                description: `${msg.count} unread message${Number(msg.count) > 1 ? "s" : ""}`,
+                image: msg.senderImage,
+                timestamp: msg.latestAt,
+                read: false,
+                link: "/farmer/dashboard/messages",
+            });
+        }
+
+        // Order notifications
+        for (const order of recentOrders) {
+            const statusLabels: Record<string, string> = {
+                pending: "📦 New order received",
+                placed: "🛒 Order placed",
+                confirmed: "✅ Order confirmed",
+                completed: "🎉 Order completed",
+                cancelled: "❌ Order cancelled",
+            };
+            notifications.push({
+                id: `order-${order.id}`,
+                type: "order",
+                title: statusLabels[order.status] || `Order ${order.status}`,
+                description: `${order.productName} — ${order.quantity} qty by ${order.otherUserName}`,
+                image: order.productImage,
+                timestamp: order.createdAt,
+                read: order.status === "completed" || order.status === "cancelled",
+                link: "/farmer/dashboard/orders",
+            });
+        }
+
+        // Sort all by timestamp (newest first)
+        notifications.sort((a, b) =>
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+
+        // Total unread count
+        const totalUnread = notifications.filter((n) => !n.read).length;
+
+        return {
+            items: notifications.slice(0, 15),
+            totalUnread,
+        };
+    }),
+});

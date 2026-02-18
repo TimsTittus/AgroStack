@@ -158,10 +158,10 @@ export default function MessagesPage() {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [chatMessages]);
 
-    // --- Fetch farmer's products for @mention (only when picker is shown) ---
+    // --- Prefetch the OTHER user's products so @mention is instant ---
     const { data: farmerProducts = [], isLoading: isLoadingProducts } = trpc.listings.getListingsByUser.useQuery(
         { userId: selectedUser?.id ?? "" },
-        { enabled: !!selectedUser && showMentionPicker }
+        { enabled: !!selectedUser }
     );
 
     const filteredProducts = farmerProducts.filter((p) =>
@@ -614,7 +614,7 @@ export default function MessagesPage() {
                                 <div className="absolute bottom-full left-0 right-0 mx-3 mb-1 bg-white rounded-lg border border-gray-200 shadow-lg p-4 text-center z-30">
                                     <Package className="h-5 w-5 text-gray-300 mx-auto mb-1.5" />
                                     <p className="text-xs text-gray-500">
-                                        {farmerProducts.length === 0 ? "This user has no products listed" : "No matching products found"}
+                                        {farmerProducts.length === 0 ? "This farmer has no products listed" : "No matching products found"}
                                     </p>
                                 </div>
                             )}
@@ -651,7 +651,7 @@ export default function MessagesPage() {
                                 </div>
                                 <button
                                     onClick={handleSend}
-                                    disabled={!inputValue.trim()}
+                                    disabled={!inputValue.trim() && !attachedProduct}
                                     className="h-10 w-10 flex items-center justify-center rounded-lg bg-green-600 text-white hover:bg-green-700 hover:shadow-md disabled:opacity-50 disabled:hover:shadow-none disabled:cursor-not-allowed transition-all active:scale-95"
                                 >
                                     <Send className="h-4 w-4" />
