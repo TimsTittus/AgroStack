@@ -30,7 +30,7 @@ export function FeaturedProducts() {
           <p className="text-xs text-[#5c7a5c]">Fresh picks from local farmers</p>
         </div>
 
-        <button 
+        <button
           onClick={() => router.push("/buyer/dashboard/products")}
           className="rounded-full border border-[#d4e7d0] bg-white px-3 py-1.5 text-[10px] font-bold text-[#2d6a4f] transition-all duration-300 hover:bg-[#2d6a4f] hover:text-white active:scale-95"
         >
@@ -78,7 +78,7 @@ export function FeaturedProducts() {
                   <span className="text-[9px] font-bold text-[#7ca87c]">/unit</span>
                 </div>
 
-                <button 
+                <button
                   onClick={handleBuyRedirect} // 4. Attach handler
                   className="flex h-8 items-center gap-1.5 rounded-lg bg-[#2d6a4f] px-3 text-[10px] font-bold text-white transition-all duration-200 hover:bg-[#1b4332] active:scale-95"
                 >

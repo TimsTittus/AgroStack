@@ -9,7 +9,7 @@ import {
   CreditCard,
   Settings,
   TrendingUp,
-  Menu, 
+  Menu,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -22,6 +22,7 @@ const navItems = [
   { icon: ShoppingBag, label: "Products", badge: "New", route: "/buyer/dashboard/products" },
   { icon: Package, label: "Orders", badge: "5", route: "/buyer/dashboard/orders" },
   { icon: CreditCard, label: "Wallet", route: "/buyer/dashboard/wallet" },
+  { icon: MessageCircle, label: "Messages", route: "/buyer/dashboard/messages" },
   { icon: Settings, label: "Settings", route: "/buyer/dashboard/settings" },
 ];
 
@@ -53,8 +54,8 @@ export function Sidebar() {
               <Icon className={cn("h-4 w-4 transition-transform duration-200 group-hover:scale-110", isActive ? "text-white" : "text-[#7ca87c]")} />
               <span className="flex-1">{label}</span>
               {badge && (
-                <span className={cn("flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold", 
-                isActive ? "bg-white/25 text-white" : "bg-[#2d6a4f]/10 text-[#2d6a4f]")}>
+                <span className={cn("flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
+                  isActive ? "bg-white/25 text-white" : "bg-[#2d6a4f]/10 text-[#2d6a4f]")}>
                   {badge}
                 </span>
               )}
@@ -90,7 +91,7 @@ export function Sidebar() {
           <SheetContent side="left" className="w-72 bg-white p-4 pt-12">
             <NavLinks onClick={() => setOpen(false)} />
             <div className="mt-auto">
-                <PromoCard />
+              <PromoCard />
             </div>
           </SheetContent>
         </Sheet>

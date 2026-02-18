@@ -15,6 +15,13 @@
       "when": 1770995918099,
       "tag": "0001_loud_goliath",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1771415279385,
+      "tag": "0002_far_changeling",
+      "breakpoints": true
     }
   ]
 }

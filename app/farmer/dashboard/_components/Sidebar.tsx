@@ -6,6 +6,7 @@ import {
   Package,
   Sprout,
   Wallet,
+  MessageCircle,
   Settings,
   ChartCandlestick,
   TrendingUp,
@@ -23,6 +24,7 @@ const navItems = [
   { icon: Package, label: "Orders", route: "/farmer/dashboard/orders" },
   { icon: Sprout, label: "Inventory", route: "/farmer/dashboard/inventory" },
   { icon: Wallet, label: "Wallet", route: "/farmer/dashboard/wallet" },
+  { icon: MessageCircle, label: "Messages", route: "/farmer/dashboard/messages" },
   { icon: Settings, label: "Settings", route: "/farmer/dashboard/settings" },
 ];
 
