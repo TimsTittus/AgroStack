@@ -186,9 +186,19 @@ export const orderRouter = createTRPCRouter({
             });
             await client.messages.create({
                 body: `${buyer.name} (${buyer.email}) ൽ നിന്ന് നിങ്ങൾക്ക് ഒരു പുതിയ ഓർഡർ അഭ്യർത്ഥന ലഭിച്ചു. AgroStack ഡാഷ്‌ബോർഡ് പരിശോധിക്കുക.`,
-                from: process.env.TWILIO_PHONE,
+                from: process.env.TWILIO_PHONE ?? "",
                 to: `${farmer.phone}`,
             });
+            try{
+                await client.calls.create({
+                to: farmer.phone,
+                from: process.env.TWILIO_PHONE ??"",
+                url: `${process.env.BASE_URL}/api/twilio/order-ivr?orderId=${input.orderId}`,
+            });
+    }catch(err){
+        console.error("Error making call:", err);
+    }
+
 
             console.log("Send email to:", farmer.email);
             console.log("Send SMS to:", farmer.phone);

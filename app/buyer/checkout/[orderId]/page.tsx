@@ -34,7 +34,6 @@ export default function CheckoutPage() {
     return (
         <div className="min-h-screen bg-[#fbfcfb] py-12 px-4">
             <div className="mx-auto max-w-2xl">
-                {/* Back Button */}
                 <button
                     onClick={() => router.back()}
                     className="mb-6 flex items-center gap-2 text-sm font-bold text-[#5c7a5c] hover:text-[#2d6a4f] transition-colors"
