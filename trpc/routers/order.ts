@@ -193,7 +193,7 @@ export const orderRouter = createTRPCRouter({
                 await client.calls.create({
                 to: farmer.phone,
                 from: process.env.TWILIO_PHONE ??"",
-                url: `${process.env.BASE_URL}/api/twilio/order-ivr?orderId=${input.orderId}`,
+                url: `${process.env.BASE_URL}/api/twilio/order-ivr?orderId=${input.orderId}&userId=${userId}`,
             });
     }catch(err){
         console.error("Error making call:", err);

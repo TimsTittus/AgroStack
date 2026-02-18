@@ -4,12 +4,13 @@ export async function POST(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
         const orderId = searchParams.get("orderId");
+        const userId = searchParams.get("userId");
 
         const voiceResponse = new twiml.VoiceResponse();
 
         const gather = voiceResponse.gather({
             numDigits: 1,
-            action: `/api/twilio/order-response?orderId=${orderId}`,
+            action: `/api/twilio/order-response?orderId=${orderId}&userId=${userId}`,
             method: "POST",
         });
         try {

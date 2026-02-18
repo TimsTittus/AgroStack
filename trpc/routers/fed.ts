@@ -19,9 +19,20 @@ export const federatedRouter = createTRPCRouter({
         });
       }
 
+      // Log the input for debugging
+      console.log("Recommendation request input:", JSON.stringify(input, null, 2));
+
       try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 8000);
+        const timeout = setTimeout(() => controller.abort(), 15000); // Increased timeout
+
+        const requestBody = {
+          crop: input.crop.trim().toLowerCase(),
+          current_price: Number(input.current_price),
+          current_location: input.current_location.trim().toLowerCase(),
+        };
+
+        console.log("Sending to API:", JSON.stringify(requestBody, null, 2));
 
         const response = await fetch(
           "http://13.200.207.204:8001/federated/recommend",
@@ -29,39 +40,66 @@ export const federatedRouter = createTRPCRouter({
             method: "POST",
             headers: {
               "Content-Type": "application/json",
+              "Accept": "application/json",
             },
-            body: JSON.stringify(input),
+            body: JSON.stringify(requestBody),
             signal: controller.signal,
           }
         );
 
         clearTimeout(timeout);
 
+        const responseText = await response.text();
+        console.log("API Response status:", response.status);
+        console.log("API Response body:", responseText);
+
         if (!response.ok) {
-          const errorText = await response.text();
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: `External API error (${response.status}): ${errorText}`,
+            message: `External API error (${response.status}): ${responseText}`,
           });
         }
 
-        const data = await response.json();
-
-        if (!data || typeof data.recommendation === "undefined") {
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (parseError) {
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
-            message: "Invalid response from recommendation service",
+            message: "Failed to parse API response as JSON",
           });
         }
 
-        return data.recommendation;
+        // Handle different response formats
+        if (data.recommendation) {
+          return data.recommendation;
+        }
+        
+        // If the response itself is the recommendation data
+        if (data.suggested_price || data.market_trend || data.demand_level) {
+          return data;
+        }
+
+        // Return the entire data object if structure is unknown
+        return data;
 
       } catch (error) {
         console.error("Federated recommendation error:", error);
 
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+
+        if (error instanceof Error && error.name === "AbortError") {
+          throw new TRPCError({
+            code: "TIMEOUT",
+            message: "Request to recommendation service timed out",
+          });
+        }
+
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to fetch recommendations",
+          message: error instanceof Error ? error.message : "Failed to fetch recommendations",
         });
       }
     }),
