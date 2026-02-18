@@ -5,6 +5,7 @@ import { orderRouter } from "./order";
 import { listingsRouter } from "./listings";
 import { inventoryRouter } from "./inventory";
 import { facebookRouter } from "./facebook";
+import { messagingRouter } from "./messaging";
 
 import { federatedRouter } from "./fed";
 export const appRouter = createTRPCRouter({
@@ -19,6 +20,7 @@ export const appRouter = createTRPCRouter({
   inventory: inventoryRouter,
   fed: federatedRouter,
   facebook: facebookRouter,
+  messaging: messagingRouter,
 });
 
 export type AppRouter = typeof appRouter;

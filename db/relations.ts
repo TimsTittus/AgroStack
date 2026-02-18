@@ -1,14 +1,14 @@
 import { relations } from "drizzle-orm/relations";
-import { user, account, session, listings, orders, inventory } from "./schema";
+import { user, account, session, listings, orders, inventory, messages } from "./schema";
 
-export const accountRelations = relations(account, ({one}) => ({
+export const accountRelations = relations(account, ({ one }) => ({
 	user: one(user, {
 		fields: [account.userId],
 		references: [user.id]
 	}),
 }));
 
-export const userRelations = relations(user, ({many}) => ({
+export const userRelations = relations(user, ({ many }) => ({
 	accounts: many(account),
 	sessions: many(session),
 	listings: many(listings),
@@ -19,16 +19,22 @@ export const userRelations = relations(user, ({many}) => ({
 		relationName: "orders_farmerId_user_id"
 	}),
 	inventories: many(inventory),
+	sentMessages: many(messages, {
+		relationName: "messages_senderId_user_id"
+	}),
+	receivedMessages: many(messages, {
+		relationName: "messages_receiverId_user_id"
+	}),
 }));
 
-export const sessionRelations = relations(session, ({one}) => ({
+export const sessionRelations = relations(session, ({ one }) => ({
 	user: one(user, {
 		fields: [session.userId],
 		references: [user.id]
 	}),
 }));
 
-export const listingsRelations = relations(listings, ({one, many}) => ({
+export const listingsRelations = relations(listings, ({ one, many }) => ({
 	user: one(user, {
 		fields: [listings.userid],
 		references: [user.id]
@@ -36,7 +42,7 @@ export const listingsRelations = relations(listings, ({one, many}) => ({
 	orders: many(orders),
 }));
 
-export const ordersRelations = relations(orders, ({one}) => ({
+export const ordersRelations = relations(orders, ({ one }) => ({
 	user_buyerId: one(user, {
 		fields: [orders.buyerId],
 		references: [user.id],
@@ -53,9 +59,22 @@ export const ordersRelations = relations(orders, ({one}) => ({
 	}),
 }));
 
-export const inventoryRelations = relations(inventory, ({one}) => ({
+export const inventoryRelations = relations(inventory, ({ one }) => ({
 	user: one(user, {
 		fields: [inventory.userId],
 		references: [user.id]
+	}),
+}));
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+	sender: one(user, {
+		fields: [messages.senderId],
+		references: [user.id],
+		relationName: "messages_senderId_user_id"
+	}),
+	receiver: one(user, {
+		fields: [messages.receiverId],
+		references: [user.id],
+		relationName: "messages_receiverId_user_id"
 	}),
 }));
