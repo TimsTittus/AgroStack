@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import GoogleTranslate from "./GoogleTranslate";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { authClient, signOut } from "@/lib/auth-client";
+import { AgroStackLogo } from "./AgroStackLogo";
 
 export function Navbar() {
   const [searchFocused, setSearchFocused] = useState(false);
@@ -48,17 +49,7 @@ export function Navbar() {
   return (
     <header className="glass sticky top-0 z-50 flex h-16 items-center justify-between px-6 transition-all duration-300">
       <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-linear-to-br from-[#2d6a4f] to-[#52b788] shadow-md">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M7 20h10" />
-            <path d="M10 20c5.5-2.5.8-6.4 3-10" />
-            <path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z" />
-            <path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z" />
-          </svg>
-        </div>
-        <span className="text-lg font-bold tracking-tight text-[#1a2e1a]">
-          Agro<span className="text-[#2d6a4f]">Stack</span>
-        </span>
+        <AgroStackLogo size={32} showText={true} />
       </div>
 
       <div className={`relative mx-8 hidden max-w-md flex-1 transition-all duration-300 md:block ${searchFocused ? "max-w-lg" : ""}`}>

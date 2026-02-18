@@ -24,9 +24,10 @@ type State = "INITIAL" | "LOCATION_PROMPT" | "MAP_VIEW";
 
 interface MarketRouterV2Props {
     cropName: string;
+    baselinePrice?: number;
 }
 
-export default function MarketRouterV2({ cropName }: MarketRouterV2Props) {
+export default function MarketRouterV2({ cropName, baselinePrice }: MarketRouterV2Props) {
     const [state, setState] = useState<State>("INITIAL");
     const [scores, setScores] = useState<MarketScore[]>([]);
     const [loading, setLoading] = useState(false);
@@ -38,23 +39,29 @@ export default function MarketRouterV2({ cropName }: MarketRouterV2Props) {
 
     useEffect(() => {
         const fetchPreview = async () => {
-            const data = await getBestMarketPreview(cropName);
+            const data = await getBestMarketPreview(cropName, baselinePrice);
             setPreview(data);
         };
         fetchPreview();
+    }, [cropName, baselinePrice]);
+
+    useEffect(() => {
+        if (state === "MAP_VIEW" && userLocation) {
+            processLocation(userLocation, false);
+        }
     }, [cropName]);
 
     const handleStartRouting = () => {
         setState("LOCATION_PROMPT");
     };
 
-    const processLocation = async (loc: { lat: number, lon: number }) => {
+    const processLocation = async (loc: { lat: number, lon: number }, updateState = true) => {
         setLoading(true);
         setUserLocation(loc);
         const results = await calculateMarketScores(cropName, 500, loc); // Default 500kg
         setScores(results);
         setLoading(false);
-        setState("MAP_VIEW");
+        if (updateState) setState("MAP_VIEW");
     };
 
     const handleGeolocation = () => {
