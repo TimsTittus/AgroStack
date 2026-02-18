@@ -18,6 +18,7 @@ import {
     Zap,
     Calendar as CalendarIcon,
 } from "lucide-react";
+import { getMarketTickerData, MarketData } from "@/lib/mandi";
 
 // --- Self-contained UI Components (to avoid missing dependency issues) ---
 
@@ -128,14 +129,14 @@ const DASHBOARD_DATA = {
 
 // --- Sub-components ---
 
-const MarketTicker = () => (
+const MarketTicker = ({ tickerData }: { tickerData: MarketData[] }) => (
     <div className="relative overflow-hidden bg-[#1b4332] py-2 text-white/90 shadow-inner">
         <motion.div
             animate={{ x: ["0%", "-100%"] }}
             transition={{ repeat: Infinity, duration: 40, ease: "linear" }}
             className="flex whitespace-nowrap"
         >
-            {[...DASHBOARD_DATA.market_ticker, ...DASHBOARD_DATA.market_ticker].map((item, idx) => (
+            {[...tickerData, ...tickerData].map((item, idx) => (
                 <div key={idx} className="mx-4 md:mx-8 flex items-center gap-2 md:gap-3 border-r border-white/10 pr-4 md:pr-8 last:border-0">
                     <span className="text-[10px] md:text-xs font-bold uppercase tracking-wider text-green-300/80">{item.crop_name}</span>
                     <span className="text-xs md:text-sm font-mono font-semibold">₹{item.live_modal_price.toFixed(2)}</span>
@@ -180,61 +181,83 @@ const Sparkline = ({ data, color }: { data: number[], color: string }) => {
     );
 };
 
-const IntelligenceCard = ({ crop, isSelected, onSelect }: { crop: any, isSelected: boolean, onSelect: () => void }) => (
-    <motion.div
-        whileHover={{ y: -4 }}
-        onClick={onSelect}
-        className={`relative cursor-pointer overflow-hidden rounded-2xl border transition-all duration-300 ${isSelected ? 'border-[#2d6a4f] bg-white shadow-xl shadow-[#2d6a4f]/10' : 'border-gray-100 bg-white/50 hover:border-[#b7e4c7] hover:shadow-lg'
-            }`}
-    >
-        <div className="p-4 md:p-5">
-            <div className="mb-4 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 md:gap-3">
-                    <div className={`flex h-8 w-8 md:h-10 md:w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${isSelected ? 'from-[#2d6a4f] to-[#40916c] text-white' : 'from-[#d8f3dc] to-[#b7e4c7] text-[#1b4332]'}`}>
-                        <Zap className="h-4 w-4 md:h-5 md:w-5" />
+const IntelligenceCard = ({ crop, isSelected, onSelect, livePrice }: { crop: any, isSelected: boolean, onSelect: () => void, livePrice?: number }) => {
+    const displayPrice = livePrice || crop.current_live_price;
+    return (
+        <motion.div
+            whileHover={{ y: -4 }}
+            onClick={onSelect}
+            className={`relative cursor-pointer overflow-hidden rounded-2xl border transition-all duration-300 ${isSelected ? 'border-[#2d6a4f] bg-white shadow-xl shadow-[#2d6a4f]/10' : 'border-gray-100 bg-white/50 hover:border-[#b7e4c7] hover:shadow-lg'
+                }`}
+        >
+            <div className="p-4 md:p-5">
+                <div className="mb-4 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 md:gap-3">
+                        <div className={`flex h-8 w-8 md:h-10 md:w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${isSelected ? 'from-[#2d6a4f] to-[#40916c] text-white' : 'from-[#d8f3dc] to-[#b7e4c7] text-[#1b4332]'}`}>
+                            <Zap className="h-4 w-4 md:h-5 md:w-5" />
+                        </div>
+                        <div className="min-w-0">
+                            <h3 className="font-bold text-[#1a2e1a] truncate text-sm md:text-base">{crop.name}</h3>
+                            <p className="text-[8px] md:text-[10px] font-semibold uppercase tracking-widest text-gray-400 truncate">AI Intelligence Active</p>
+                        </div>
                     </div>
-                    <div className="min-w-0">
-                        <h3 className="font-bold text-[#1a2e1a] truncate text-sm md:text-base">{crop.name}</h3>
-                        <p className="text-[8px] md:text-[10px] font-semibold uppercase tracking-widest text-gray-400 truncate">AI Intelligence Active</p>
+                    <Badge variant="outline" className={`${isSelected ? 'border-[#2d6a4f] text-[#2d6a4f]' : ''} text-[10px] px-1.5 md:px-2.5`}>Live</Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-2 md:gap-4">
+                    <div>
+                        <p className="text-[8px] md:text-[10px] font-medium uppercase tracking-wider text-gray-500">Current</p>
+                        <p className="text-base md:text-xl font-bold text-[#1a2e1a]">₹{displayPrice.toFixed(2)}</p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-[8px] md:text-[10px] font-medium uppercase tracking-wider text-[#2d6a4f]">Predicted Price</p>
+                        <p className="text-base md:text-xl font-bold text-[#2d6a4f]">₹{crop.forecast_30d.toFixed(2)}</p>
                     </div>
                 </div>
-                <Badge variant="outline" className={`${isSelected ? 'border-[#2d6a4f] text-[#2d6a4f]' : ''} text-[10px] px-1.5 md:px-2.5`}>Live</Badge>
-            </div>
-            <div className="grid grid-cols-2 gap-2 md:gap-4">
-                <div>
-                    <p className="text-[8px] md:text-[10px] font-medium uppercase tracking-wider text-gray-500">Current</p>
-                    <p className="text-base md:text-xl font-bold text-[#1a2e1a]">₹{crop.current_live_price.toFixed(2)}</p>
-                </div>
-                <div className="text-right">
-                    <p className="text-[8px] md:text-[10px] font-medium uppercase tracking-wider text-[#2d6a4f]">AI Forecast</p>
-                    <p className="text-base md:text-xl font-bold text-[#2d6a4f]">₹{crop.forecast_30d.toFixed(2)}</p>
-                </div>
-            </div>
-            <div className="mt-4 md:mt-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <div className="w-full sm:w-auto overflow-hidden">
-                    <Sparkline data={crop.sparkline_7d_data} color={crop.forecast_30d > crop.current_live_price ? "#22c55e" : "#ef4444"} />
-                </div>
-                <div className="flex flex-col items-start sm:items-end">
-                    <span className={`text-[10px] md:text-xs font-bold ${crop.forecast_30d > crop.current_live_price ? 'text-green-600' : 'text-red-600'}`}>
-                        {((crop.forecast_30d - crop.current_live_price) / crop.current_live_price * 100).toFixed(1)}% {crop.forecast_30d > crop.current_live_price ? 'Gain' : 'Correction'}
-                    </span>
-                    <span className="text-[8px] md:text-[10px] text-gray-400">Hybrid Forecast</span>
+                <div className="mt-4 md:mt-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="w-full sm:w-auto overflow-hidden">
+                        <Sparkline data={crop.sparkline_7d_data} color={crop.forecast_30d > displayPrice ? "#22c55e" : "#ef4444"} />
+                    </div>
+                    <div className="flex flex-col items-start sm:items-end">
+                        <span className={`text-[10px] md:text-xs font-bold ${crop.forecast_30d > displayPrice ? 'text-green-600' : 'text-red-600'}`}>
+                            {((crop.forecast_30d - displayPrice) / displayPrice * 100).toFixed(1)}% {crop.forecast_30d > displayPrice ? 'Gain' : 'Loss'}
+                        </span>
+                    </div>
                 </div>
             </div>
-        </div>
-        {isSelected && <motion.div layoutId="active-indicator" className="absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r from-[#2d6a4f] to-[#40916c]" />}
-    </motion.div>
-);
+            {isSelected && <motion.div layoutId="active-indicator" className="absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r from-[#2d6a4f] to-[#40916c]" />}
+        </motion.div>
+    );
+};
 
 // --- Main Page Component ---
 
 export default function OverviewPage() {
+    const [tickerData, setTickerData] = useState<MarketData[]>(DASHBOARD_DATA.market_ticker);
     const [selectedCrop, setSelectedCrop] = useState(DASHBOARD_DATA.crop_intelligence_cards[0]);
     const [calcQuantity, setCalcQuantity] = useState(100);
 
+    React.useEffect(() => {
+        const fetchPrices = async () => {
+            try {
+                const liveData = await getMarketTickerData();
+                if (liveData && liveData.length > 0) {
+                    setTickerData(liveData);
+                }
+            } catch (error) {
+                console.error("Failed to fetch live prices:", error);
+            }
+        };
+        fetchPrices();
+    }, []);
+
+    const getLivePriceForCrop = (name: string) => {
+        const liveMatch = tickerData.find(t => t.crop_name === name || (name === "Rubber" && t.crop_name === "Rubber") || (name === "Black Pepper" && t.crop_name === "Black Pepper"));
+        return liveMatch?.live_modal_price;
+    };
+
     return (
         <div className="flex-1 bg-[#f8faf6] pb-12 min-w-0">
-            <MarketTicker />
+            <MarketTicker tickerData={tickerData} />
 
             <main className="mx-auto max-w-7xl px-4 py-6 md:py-8 sm:px-6 lg:px-8">
                 <div className="mb-8 md:mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -264,6 +287,7 @@ export default function OverviewPage() {
                                 crop={crop}
                                 isSelected={selectedCrop.listing_id === crop.listing_id}
                                 onSelect={() => setSelectedCrop(crop)}
+                                livePrice={getLivePriceForCrop(crop.name)}
                             />
                         ))}
                         <div className="flex items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/50 p-5 transition-colors hover:bg-gray-50">
@@ -278,6 +302,33 @@ export default function OverviewPage() {
                 <div className="mb-10 grid gap-6 lg:gap-8 lg:grid-cols-3">
                     {/* Side Module Stack - Now on Left for Desktop */}
                     <div className="flex flex-col gap-6 lg:gap-8 order-2 lg:order-1">
+                        <Card className="border-none bg-white shadow-xl shadow-green-900/5 transition-transform hover:scale-[1.01]">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-base md:text-lg flex items-center gap-2 text-[#1a2e1a]"><Calculator className="h-4 w-4 md:h-5 md:w-5 text-[#2d6a4f]" /> Revenue Projection</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-6 pt-4">
+                                <div className="space-y-4">
+                                    <div className="flex justify-between">
+                                        <span className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider">Quantity</span>
+                                        <span className="text-sm font-mono font-bold text-[#2d6a4f]">{calcQuantity} kg</span>
+                                    </div>
+                                    <div className="px-1">
+                                        <input type="range" min="0" max="2000" step="10" value={calcQuantity} onChange={(e) => setCalcQuantity(parseInt(e.target.value))} className="w-full h-1.5 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-[#2d6a4f]" />
+                                    </div>
+                                </div>
+                                <div className="rounded-2xl bg-gray-50/50 p-4 space-y-4">
+                                    <div className="flex justify-between border-b border-gray-100 pb-3">
+                                        <span className="text-[10px] font-semibold text-gray-400 font-mono uppercase tracking-widest">Current</span>
+                                        <span className="text-sm font-bold text-[#1a2e1a]">₹{(calcQuantity * (getLivePriceForCrop(selectedCrop.name) || selectedCrop.current_live_price)).toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between pt-1">
+                                        <span className="text-[10px] font-bold text-[#2d6a4f] uppercase tracking-widest flex items-center gap-1 opacity-80"><Zap className="h-3 w-3" /> AI Target</span>
+                                        <span className="text-base md:text-lg font-black text-[#2d6a4f]">₹{(calcQuantity * selectedCrop.predicted_price).toLocaleString()}</span>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
                         <Card className="border-none bg-[#1b4332] text-white shadow-xl shadow-green-900/10 transition-all hover:scale-[1.01]">
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-base md:text-lg flex items-center gap-2 text-white"><CloudRain className="h-4 w-4 md:h-5 md:w-5 text-green-300" /> Climate Risk Level</CardTitle>
@@ -304,33 +355,6 @@ export default function OverviewPage() {
                                     </div>
                                 </div>
                                 <div className="mt-6 border-t border-white/10 pt-4"><p className="text-[11px] leading-relaxed italic text-green-100/80">"{DASHBOARD_DATA.analytics_deep_dive.weather_impact_meter.advisory}"</p></div>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="border-none bg-white shadow-xl shadow-green-900/5 transition-transform hover:scale-[1.01]">
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-base md:text-lg flex items-center gap-2 text-[#1a2e1a]"><Calculator className="h-4 w-4 md:h-5 md:w-5 text-[#2d6a4f]" /> Revenue Projection</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-6 pt-4">
-                                <div className="space-y-4">
-                                    <div className="flex justify-between">
-                                        <span className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider">Quantity</span>
-                                        <span className="text-sm font-mono font-bold text-[#2d6a4f]">{calcQuantity} kg</span>
-                                    </div>
-                                    <div className="px-1">
-                                        <input type="range" min="0" max="2000" step="10" value={calcQuantity} onChange={(e) => setCalcQuantity(parseInt(e.target.value))} className="w-full h-1.5 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-[#2d6a4f]" />
-                                    </div>
-                                </div>
-                                <div className="rounded-2xl bg-gray-50/50 p-4 space-y-4">
-                                    <div className="flex justify-between border-b border-gray-100 pb-3">
-                                        <span className="text-[10px] font-semibold text-gray-400 font-mono uppercase tracking-widest">Current</span>
-                                        <span className="text-sm font-bold text-[#1a2e1a]">₹{(calcQuantity * selectedCrop.current_live_price).toLocaleString()}</span>
-                                    </div>
-                                    <div className="flex justify-between pt-1">
-                                        <span className="text-[10px] font-bold text-[#2d6a4f] uppercase tracking-widest flex items-center gap-1 opacity-80"><Zap className="h-3 w-3" /> AI Target</span>
-                                        <span className="text-base md:text-lg font-black text-[#2d6a4f]">₹{(calcQuantity * selectedCrop.predicted_price).toLocaleString()}</span>
-                                    </div>
-                                </div>
                             </CardContent>
                         </Card>
                     </div>
