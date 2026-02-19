@@ -1,4 +1,4 @@
-import { pgTable, index, text, timestamp, foreignKey, unique, boolean, uuid, bigint } from "drizzle-orm/pg-core"
+import { pgTable, index, text, timestamp, foreignKey, unique, boolean, uuid, bigint, primaryKey } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 
@@ -158,4 +158,18 @@ export const inventory = pgTable("inventory", {
 			foreignColumns: [user.id],
 			name: "inventory_user_id_fkey"
 		}).onDelete("cascade"),
+]);
+
+export const dismissedNotifications = pgTable("dismissed_notifications", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	userId: text("user_id").notNull(),
+	notificationId: text("notification_id").notNull(),
+	dismissedAt: timestamp("dismissed_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	foreignKey({
+		columns: [table.userId],
+		foreignColumns: [user.id],
+		name: "dismissed_notifications_user_id_fkey"
+	}).onDelete("cascade"),
+	unique("dismissed_notifications_user_notif_unique").on(table.userId, table.notificationId),
 ]);
