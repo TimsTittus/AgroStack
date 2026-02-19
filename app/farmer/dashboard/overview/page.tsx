@@ -17,6 +17,8 @@ import {
     Maximize2,
     Zap,
     Calendar as CalendarIcon,
+    Trash2,
+    Plus,
 } from "lucide-react";
 import { getMarketTickerData, MarketData, getHistoricalPrices } from "@/lib/mandi";
 import MarketRouterV2 from "@/components/MarketRouterV2";
@@ -123,28 +125,132 @@ const DASHBOARD_DATA = {
     }
 };
 
+// --- Master Pool of Supported Crops for Watchlist ---
+const POOL_CROPS = [
+    {
+        listing_id: "a1b2c3d4-e5f6-4a5b-bc6d-7e8f90123456",
+        name: "Rubber",
+        current_live_price: 184.50,
+        predicted_price: 192.30,
+        forecast_30d: 195.40,
+        sparkline_7d_data: [182, 183.5, 183, 184, 184.2, 184, 184.5],
+        expert_xai_snippet: "Price increase driven by 15% rainfall deficit in Kottayam regions."
+    },
+    {
+        listing_id: "b2c3d4e5-f6a7-5b6c-cd7e-8f9012345678",
+        name: "Black Pepper",
+        current_live_price: 615.00,
+        predicted_price: 608.15,
+        forecast_30d: 598.00,
+        sparkline_7d_data: [625, 622, 620, 618, 616, 615.5, 615],
+        expert_xai_snippet: "Short-term price decrease detected (shock factor 4.2%)."
+    },
+    {
+        listing_id: "c3d4e5f6-a7b8-6c7d-de8f-9a0123456789",
+        name: "Cardamom",
+        current_live_price: 2450.00,
+        predicted_price: 2510.00,
+        forecast_30d: 2580.00,
+        sparkline_7d_data: [2400, 2420, 2410, 2440, 2455, 2445, 2450],
+        expert_xai_snippet: "Export demand surge from Middle East markets pushing prices up."
+    },
+    {
+        listing_id: "d4e5f6a7-b8c9-7d8e-ef9a-012345678901",
+        name: "Coffee Robusta",
+        current_live_price: 158.00,
+        predicted_price: 164.50,
+        forecast_30d: 168.00,
+        sparkline_7d_data: [152, 155, 154, 157, 158.5, 157, 158],
+        expert_xai_snippet: "Global supply constraints in Vietnam providing price support."
+    },
+    {
+        listing_id: "e5f6a7b8-c9d0-8e9f-f0a1-123456789012",
+        name: "Arecanut",
+        current_live_price: 432.00,
+        predicted_price: 425.00,
+        forecast_30d: 418.00,
+        sparkline_7d_data: [445, 440, 438, 435, 433, 434, 432],
+        expert_xai_snippet: "Domestic demand stabilization expected after festive peak."
+    },
+    {
+        listing_id: "f6a7b8c9-d0e1-9f0a-a1b2-234567890123",
+        name: "Ginger",
+        current_live_price: 145.00,
+        predicted_price: 152.00,
+        forecast_30d: 158.00,
+        sparkline_7d_data: [140, 142, 141, 144, 146, 145, 145],
+        expert_xai_snippet: "Reduced cultivation area in Wayanad supporting firm prices."
+    },
+    {
+        listing_id: "a7b8c9d0-e1f2-0a1b-b2c3-345678901234",
+        name: "Turmeric",
+        current_live_price: 112.50,
+        predicted_price: 108.00,
+        forecast_30d: 105.00,
+        sparkline_7d_data: [120, 118, 115, 114, 112, 113, 112.5],
+        expert_xai_snippet: "New harvest arrivals in Nizamabad expected to cool local sentiment."
+    },
+    {
+        listing_id: "b8c9d0e1-f2a3-1b2c-c3d4-456789012345",
+        name: "Nutmeg",
+        current_live_price: 540.00,
+        predicted_price: 555.00,
+        forecast_30d: 562.00,
+        sparkline_7d_data: [530, 535, 532, 538, 542, 539, 540],
+        expert_xai_snippet: "Stable demand for high-quality mace driving whole nutmeg prices."
+    },
+    {
+        listing_id: "c9d0e1f2-a3b4-2c3d-d4e5-567890123456",
+        name: "Cocoa",
+        current_live_price: 285.00,
+        predicted_price: 298.00,
+        forecast_30d: 310.00,
+        sparkline_7d_data: [270, 275, 272, 280, 286, 284, 285],
+        expert_xai_snippet: "International price rally triggered by Ivorian supply shortages."
+    }
+];
+
 // --- Sub-components ---
 
-const MarketTicker = ({ tickerData }: { tickerData: MarketData[] }) => (
-    <div className="relative overflow-hidden bg-[#1b4332] py-2 text-white/90 shadow-inner">
-        <motion.div
-            animate={{ x: ["0%", "-100%"] }}
-            transition={{ repeat: Infinity, duration: 40, ease: "linear" }}
-            className="flex whitespace-nowrap"
-        >
-            {[...tickerData, ...tickerData].map((item, idx) => (
-                <div key={idx} className="mx-4 md:mx-8 flex items-center gap-2 md:gap-3 border-r border-white/10 pr-4 md:pr-8 last:border-0">
-                    <span className="text-[10px] md:text-xs font-bold uppercase tracking-wider text-green-300/80">{item.crop_name}</span>
-                    <span className="text-xs md:text-sm font-mono font-semibold">₹{item.live_modal_price.toFixed(2)}</span>
-                    <span className={`flex items-center text-[10px] md:text-xs font-bold ${item.day_change_percentage >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {item.day_change_percentage >= 0 ? <TrendingUp className="mr-1 h-3 w-3" /> : <TrendingDown className="mr-1 h-3 w-3" />}
-                        {Math.abs(item.day_change_percentage)}%
-                    </span>
-                </div>
-            ))}
-        </motion.div>
-    </div>
-);
+const MarketTicker = ({ tickerData }: { tickerData: MarketData[] }) => {
+    // If no data yet, show mock skeleton or empty
+    const displayData = tickerData.length > 0 ? tickerData : [
+        { crop_name: "Rubber", live_modal_price: 184.50, day_change_percentage: 1.25, trend_color_code: "#22c55e" },
+        { crop_name: "Black Pepper", live_modal_price: 615.00, day_change_percentage: -0.45, trend_color_code: "#ef4444" },
+        { crop_name: "Cardamom", live_modal_price: 2450.00, day_change_percentage: 2.1, trend_color_code: "#22c55e" },
+        { crop_name: "Coffee Robusta", live_modal_price: 158.00, day_change_percentage: 0.85, trend_color_code: "#22c55e" },
+        { crop_name: "Arecanut", live_modal_price: 432.00, day_change_percentage: -1.15, trend_color_code: "#ef4444" }
+    ];
+
+    return (
+        <div className="relative overflow-hidden bg-[#0c1a0c] py-2 text-white/95 border-b border-white/5">
+            <motion.div
+                animate={{ x: ["0%", "-50%"] }}
+                transition={{ repeat: Infinity, duration: 30, ease: "linear" }}
+                className="flex whitespace-nowrap"
+            >
+                {[...displayData, ...displayData].map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-4 px-8 border-r border-white/10">
+                        <span className="text-[10px] md:text-sm font-black uppercase tracking-widest text-green-400">
+                            {item.crop_name}
+                        </span>
+                        <span className="text-xs md:text-base font-mono font-bold">
+                            ₹{item.live_modal_price.toFixed(2)}
+                        </span>
+                        <span className={`flex items-center gap-1 text-[10px] md:text-xs font-black ${item.day_change_percentage >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            {item.day_change_percentage >= 0 ? (
+                                <TrendingUp className="h-3 w-3" strokeWidth={3} />
+                            ) : (
+                                <TrendingDown className="h-3 w-3" strokeWidth={3} />
+                            )}
+                            {Math.abs(item.day_change_percentage)}%
+                        </span>
+                    </div>
+                ))}
+            </motion.div>
+        </div>
+    );
+};
 
 const Sparkline = ({ data, color }: { data: number[], color: string }) => {
     const min = Math.min(...data);
@@ -177,15 +283,27 @@ const Sparkline = ({ data, color }: { data: number[], color: string }) => {
     );
 };
 
-const IntelligenceCard = ({ crop, isSelected, onSelect, livePrice }: { crop: any, isSelected: boolean, onSelect: () => void, livePrice?: number }) => {
+const IntelligenceCard = ({ crop, isSelected, onSelect, onDelete, livePrice }: { crop: any, isSelected: boolean, onSelect: () => void, onDelete: (e: React.MouseEvent) => void, livePrice?: number }) => {
     const displayPrice = livePrice || crop.current_live_price;
     return (
         <motion.div
             whileHover={{ y: -4 }}
             onClick={onSelect}
-            className={`relative cursor-pointer overflow-hidden rounded-2xl border transition-all duration-300 ${isSelected ? 'border-[#2d6a4f] bg-white shadow-xl shadow-[#2d6a4f]/10' : 'border-gray-100 bg-white/50 hover:border-[#b7e4c7] hover:shadow-lg'
+            className={`relative group cursor-pointer overflow-hidden rounded-2xl border transition-all duration-300 ${isSelected ? 'border-[#2d6a4f] bg-white shadow-xl shadow-[#2d6a4f]/10' : 'border-gray-100 bg-white/50 hover:border-[#b7e4c7] hover:shadow-lg'
                 }`}
         >
+            {/* Delete Button */}
+            <button
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(e);
+                }}
+                className="absolute top-2 right-2 p-1.5 rounded-lg bg-red-50 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 z-10"
+                title="Remove from watchlist"
+            >
+                <Trash2 className="h-3.5 w-3.5" />
+            </button>
+
             <div className="p-4 md:p-5">
                 <div className="mb-4 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 md:gap-3">
@@ -197,7 +315,6 @@ const IntelligenceCard = ({ crop, isSelected, onSelect, livePrice }: { crop: any
                             <p className="text-[8px] md:text-[10px] font-semibold uppercase tracking-widest text-gray-400 truncate">AI Intelligence Active</p>
                         </div>
                     </div>
-                    <Badge variant="outline" className={`${isSelected ? 'border-[#2d6a4f] text-[#2d6a4f]' : ''} text-[10px] px-1.5 md:px-2.5`}>Live</Badge>
                 </div>
                 <div className="grid grid-cols-2 gap-2 md:gap-4">
                     <div>
@@ -229,19 +346,101 @@ const IntelligenceCard = ({ crop, isSelected, onSelect, livePrice }: { crop: any
 
 export default function OverviewPage() {
     const [tickerData, setTickerData] = useState<MarketData[]>([]);
-    const [selectedCrop, setSelectedCrop] = useState(DASHBOARD_DATA.crop_intelligence_cards[0]);
+    const [isLoadingPrices, setIsLoadingPrices] = useState(true);
+    const [crops, setCrops] = useState(POOL_CROPS.slice(0, 2)); // Start with Rubber & Pepper
+    const [selectedCrop, setSelectedCrop] = useState(POOL_CROPS[0]);
     const [calcQuantity, setCalcQuantity] = useState(100);
+    const [showAddMenu, setShowAddMenu] = useState(false);
     const [historicalData, setHistoricalData] = useState<{ date: string, price: number }[]>([]);
+    const [weatherData, setWeatherData] = useState<{
+        temp: number;
+        humidity: number;
+        status: string;
+        advisory: string;
+        shock: number;
+    }>({
+        temp: DASHBOARD_DATA.analytics_deep_dive.weather_impact_meter.current_metrics.temp,
+        humidity: DASHBOARD_DATA.analytics_deep_dive.weather_impact_meter.current_metrics.humidity,
+        status: DASHBOARD_DATA.analytics_deep_dive.weather_impact_meter.status,
+        advisory: DASHBOARD_DATA.analytics_deep_dive.weather_impact_meter.advisory,
+        shock: DASHBOARD_DATA.analytics_deep_dive.weather_impact_meter.shock_influence_coefficient,
+    });
+
+    React.useEffect(() => {
+        const fetchWeather = async () => {
+            try {
+                // Open Meteo API for Kottayam (9.5916, 76.5221)
+                const response = await fetch(
+                    "https://api.open-meteo.com/v1/forecast?latitude=9.5916&longitude=76.5221&current=temperature_2m,relative_humidity_2m,rain,weather_code"
+                );
+                const data = await response.json();
+
+                if (data.current) {
+                    const temp = data.current.temperature_2m;
+                    const humidity = data.current.relative_humidity_2m;
+                    const rain = data.current.rain;
+
+                    // Determine status and advisory based on conditions
+                    let status = "Moderate";
+                    let advisory = "Conditions are stable for rubber and pepper crops.";
+                    let shock = 0.12;
+
+                    if (temp > 35) {
+                        status = "High";
+                        advisory = "Extreme heat detected; irrigation recommended to prevent moisture stress.";
+                        shock = 0.25;
+                    } else if (rain > 15) {
+                        status = "High";
+                        advisory = "Heavy rainfall detected; plan for drainage and fungal protection.";
+                        shock = 0.30;
+                    } else if (temp < 20) {
+                        status = "Low";
+                        advisory = "Cooler weather may slow crop maturation but reduces water demand.";
+                        shock = 0.05;
+                    } else if (humidity < 40) {
+                        status = "Moderate";
+                        advisory = "Low humidity detected; monitor for potential dry-spell impacts.";
+                        shock = 0.15;
+                    }
+
+                    setWeatherData({
+                        temp,
+                        humidity,
+                        status,
+                        advisory,
+                        shock
+                    });
+                }
+            } catch (error) {
+                console.error("Failed to fetch live weather:", error);
+            }
+        };
+
+        fetchWeather();
+    }, []);
 
     React.useEffect(() => {
         const fetchPrices = async () => {
+            setIsLoadingPrices(true);
             try {
                 const liveData = await getMarketTickerData();
                 if (liveData && liveData.length > 0) {
                     setTickerData(liveData);
+
+                    // Update initial selected crop with live price if available
+                    const firstCrop = DASHBOARD_DATA.crop_intelligence_cards[0];
+                    const liveMatch = liveData.find(t => t.crop_name === firstCrop.name);
+                    if (liveMatch) {
+                        setSelectedCrop(prev => ({
+                            ...prev,
+                            current_live_price: liveMatch.live_modal_price
+                        }));
+                    }
                 }
             } catch (error) {
                 console.error("Failed to fetch live prices:", error);
+            } finally {
+                setIsLoadingPrices(false);
             }
         };
         fetchPrices();
@@ -254,6 +453,21 @@ export default function OverviewPage() {
         };
         fetchHistory();
     }, [selectedCrop.name]);
+
+    const handleAddCrop = (crop: any) => {
+        if (!crops.find(c => c.listing_id === crop.listing_id)) {
+            setCrops([...crops, crop]);
+        }
+        setShowAddMenu(false);
+    };
+
+    const handleDeleteCrop = (listingId: string) => {
+        const filtered = crops.filter(c => c.listing_id !== listingId);
+        setCrops(filtered);
+        if (selectedCrop.listing_id === listingId && filtered.length > 0) {
+            setSelectedCrop(filtered[0]);
+        }
+    };
 
     const getLivePriceForCrop = (name: string) => {
         const liveMatch = tickerData?.find(t => t.crop_name === name || (name === "Rubber" && t.crop_name === "Rubber") || (name === "Black Pepper" && t.crop_name === "Black Pepper"));
@@ -360,9 +574,9 @@ export default function OverviewPage() {
                         </div>
                     </div>
                     <div className="flex gap-2 md:gap-3">
-                        <Button variant="outline" className="flex-1 md:flex-none gap-2 border-[#d8f3dc] bg-white/50 backdrop-blur-sm px-3 md:px-4">
+                        {/* <Button variant="outline" className="flex-1 md:flex-none gap-2 border-[#d8f3dc] bg-white/50 backdrop-blur-sm px-3 md:px-4">
                             <CalendarIcon className="h-4 w-4" /> <span className="hidden xs:inline">Last 30 Days</span><span className="xs:hidden">30d</span>
-                        </Button>
+                        </Button> */}
                         {/* <Button className="flex-1 md:flex-none gap-2 px-3 md:px-4">
                             <Maximize2 className="h-4 w-4" /> <span className="hidden xs:inline">Full Report</span><span className="xs:hidden">Report</span>
                         </Button> */}
@@ -375,20 +589,65 @@ export default function OverviewPage() {
                         <h2 className="text-xl font-bold text-[#1b4332]">Price Forecasters</h2>
                     </div>
                     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                        {DASHBOARD_DATA.crop_intelligence_cards.map((crop) => (
+                        {crops.map((crop) => (
                             <IntelligenceCard
                                 key={crop.listing_id}
                                 crop={crop}
                                 isSelected={selectedCrop.listing_id === crop.listing_id}
-                                onSelect={() => setSelectedCrop(crop)}
-                                livePrice={getLivePriceForCrop(crop.name)}
+                                onSelect={() => {
+                                    const livePrice = getLivePriceForCrop(crop.name);
+                                    setSelectedCrop({
+                                        ...crop,
+                                        current_live_price: livePrice || crop.current_live_price
+                                    });
+                                }}
+                                onDelete={() => handleDeleteCrop(crop.listing_id)}
+                                livePrice={isLoadingPrices ? undefined : getLivePriceForCrop(crop.name)}
                             />
                         ))}
-                        <div className="flex items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/50 p-5 transition-colors hover:bg-gray-50">
-                            <div className="text-center">
-                                <Button variant="ghost" className="h-10 w-10 rounded-full bg-green-100/50 text-[#2d6a4f] text-2xl">+</Button>
-                                <p className="mt-2 text-xs font-semibold text-gray-400 uppercase tracking-widest">Add Watchlist</p>
+
+                        <div className="relative group/add">
+                            <div
+                                onClick={() => setShowAddMenu(!showAddMenu)}
+                                className="flex h-full min-h-[160px] items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/50 p-5 transition-all hover:bg-white hover:border-[#2d6a4f] hover:shadow-lg cursor-pointer"
+                            >
+                                <div className="text-center">
+                                    <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-green-100/50 text-[#2d6a4f] text-2xl">
+                                        <Plus className="h-5 w-5" />
+                                    </div>
+                                    <p className="mt-2 text-xs font-semibold text-gray-400 uppercase tracking-widest group-hover/add:text-[#2d6a4f]">Add Watchlist</p>
+                                </div>
                             </div>
+
+                            <AnimatePresence>
+                                {showAddMenu && (
+                                    <motion.div
+                                        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                                        className="absolute top-full left-0 right-0 z-50 mt-2 rounded-2xl bg-white p-2 shadow-2xl border border-gray-100"
+                                    >
+                                        <div className="p-2 border-b border-gray-50 mb-2">
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Available Crops</p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            {POOL_CROPS.filter(p => !crops.find(c => c.listing_id === p.listing_id)).map(p => (
+                                                <button
+                                                    key={p.listing_id}
+                                                    onClick={() => handleAddCrop(p)}
+                                                    className="flex w-full items-center justify-between rounded-xl px-4 py-2.5 text-left text-sm font-bold text-[#1a2e1a] hover:bg-green-50 hover:text-[#2d6a4f] transition-colors"
+                                                >
+                                                    {p.name}
+                                                    <ChevronRight className="h-4 w-4 opacity-50" />
+                                                </button>
+                                            ))}
+                                            {POOL_CROPS.filter(p => !crops.find(c => c.listing_id === p.listing_id)).length === 0 && (
+                                                <p className="p-4 text-center text-xs text-gray-400">All available crops are in your watchlist.</p>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
                     </div>
                 </div>
@@ -430,25 +689,25 @@ export default function OverviewPage() {
                             <CardContent>
                                 <div className="mt-4 flex items-center justify-between">
                                     <div>
-                                        <p className="text-2xl md:text-3xl font-black text-white">{DASHBOARD_DATA.analytics_deep_dive.weather_impact_meter.status}</p>
+                                        <p className="text-2xl md:text-3xl font-black text-white">{weatherData.status}</p>
                                         <p className="text-[10px] font-bold uppercase tracking-widest text-green-200/60">Risk Status</p>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-lg md:text-xl font-mono text-white">{DASHBOARD_DATA.analytics_deep_dive.weather_impact_meter.shock_influence_coefficient * 100}%</p>
+                                        <p className="text-lg md:text-xl font-mono text-white">{(weatherData.shock * 100).toFixed(0)}%</p>
                                         <p className="text-[10px] font-bold uppercase tracking-widest text-green-200/60">Impact</p>
                                     </div>
                                 </div>
                                 <div className="mt-6 grid grid-cols-2 gap-3">
                                     <div className="flex flex-col gap-1 rounded-xl bg-white/10 p-2.5">
                                         <div className="flex items-center gap-2 text-green-300"><Thermometer className="h-3 w-3" /><span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Temp</span></div>
-                                        <span className="text-sm font-bold text-white">{DASHBOARD_DATA.analytics_deep_dive.weather_impact_meter.current_metrics.temp}°C</span>
+                                        <span className="text-sm font-bold text-white">{weatherData.temp}°C</span>
                                     </div>
                                     <div className="flex flex-col gap-1 rounded-xl bg-white/10 p-2.5">
                                         <div className="flex items-center gap-2 text-green-300"><Droplets className="h-3 w-3" /><span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Humid</span></div>
-                                        <span className="text-sm font-bold text-white">{DASHBOARD_DATA.analytics_deep_dive.weather_impact_meter.current_metrics.humidity}%</span>
+                                        <span className="text-sm font-bold text-white">{weatherData.humidity}%</span>
                                     </div>
                                 </div>
-                                <div className="mt-6 border-t border-white/10 pt-4"><p className="text-[11px] leading-relaxed italic text-green-100/80">"{DASHBOARD_DATA.analytics_deep_dive.weather_impact_meter.advisory}"</p></div>
+                                <div className="mt-6 border-t border-white/10 pt-4"><p className="text-[11px] leading-relaxed italic text-green-100/80">"{weatherData.advisory}"</p></div>
                             </CardContent>
                         </Card>
                     </div>
