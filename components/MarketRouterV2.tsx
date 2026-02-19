@@ -38,8 +38,10 @@ export default function MarketRouterV2({ cropName, baselinePrice }: MarketRouter
     const [preview, setPreview] = useState<{ name: string, price: number, profit: number } | null>(null);
 
     useEffect(() => {
+        console.log("MarketRouterV2: cropName changed to", cropName, "baselinePrice:", baselinePrice);
         const fetchPreview = async () => {
             const data = await getBestMarketPreview(cropName, baselinePrice);
+            console.log("MarketRouterV2: fetched preview:", data);
             setPreview(data);
         };
         fetchPreview();
@@ -49,7 +51,7 @@ export default function MarketRouterV2({ cropName, baselinePrice }: MarketRouter
         if (state === "MAP_VIEW" && userLocation) {
             processLocation(userLocation, false);
         }
-    }, [cropName]);
+    }, [cropName, baselinePrice]);
 
     const handleStartRouting = () => {
         setState("LOCATION_PROMPT");
@@ -58,7 +60,7 @@ export default function MarketRouterV2({ cropName, baselinePrice }: MarketRouter
     const processLocation = async (loc: { lat: number, lon: number }, updateState = true) => {
         setLoading(true);
         setUserLocation(loc);
-        const results = await calculateMarketScores(cropName, 500, loc); // Default 500kg
+        const results = await calculateMarketScores(cropName, 500, loc, baselinePrice); // Pass baselinePrice
         setScores(results);
         setLoading(false);
         if (updateState) setState("MAP_VIEW");
@@ -128,19 +130,28 @@ export default function MarketRouterV2({ cropName, baselinePrice }: MarketRouter
                         <div className="mb-2 rounded-2xl bg-white/10 p-4 md:p-6 backdrop-blur-md">
                             <div className="mb-2 flex items-center justify-between">
                                 <span className="text-[10px] font-bold uppercase tracking-widest text-[#d8f3dc]/60">Top Destination</span>
-                                <Badge className="bg-green-400 text-green-950 px-2 py-0">98% Match</Badge>
+                                <Badge className="bg-green-400 text-green-950 px-2 py-0">Best Match</Badge>
                             </div>
-                            <h4 className="text-2xl md:text-3xl font-black text-white">{preview?.name || "Loading..."}</h4>
-                            <div className="mt-4 flex items-end gap-3 translate-y-2">
-                                <div className="border-l-2 border-green-400 pl-3">
-                                    <p className="text-[8px] font-bold uppercase tracking-widest text-green-200/50">Market Price</p>
-                                    <p className="text-sm font-black text-white">₹{preview?.price || "..."}</p>
+                            {preview ? (
+                                <>
+                                    <h4 className="text-2xl md:text-3xl font-black text-white">{preview.name}</h4>
+                                    <div className="mt-4 flex items-end gap-3 translate-y-2">
+                                        <div className="border-l-2 border-green-400 pl-3">
+                                            <p className="text-[8px] font-bold uppercase tracking-widest text-green-200/50">Market Price</p>
+                                            <p className="text-sm font-black text-white">₹{preview.price.toFixed(2)}</p>
+                                        </div>
+                                        <div className="border-l-2 border-green-300 pl-3">
+                                            <p className="text-[8px] font-bold uppercase tracking-widest text-green-200/50">Est. Profit</p>
+                                            <p className="text-xl font-black text-white">₹{preview.profit.toFixed(1)}<span className="text-[10px] font-normal opacity-60">/kg</span></p>
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="space-y-4 py-2">
+                                    <div className="h-8 w-3/4 bg-white/10 animate-pulse rounded-lg" />
+                                    <div className="h-12 w-1/2 bg-white/10 animate-pulse rounded-lg" />
                                 </div>
-                                <div className="border-l-2 border-green-300 pl-3">
-                                    <p className="text-[8px] font-bold uppercase tracking-widest text-green-200/50">Est. Profit</p>
-                                    <p className="text-xl font-black text-white">₹{preview?.profit || "..."}<span className="text-[10px] font-normal opacity-60">/kg</span></p>
-                                </div>
-                            </div>
+                            )}
                         </div>
                         <div className="mt-auto flex flex-col xs:flex-row items-center justify-between gap-4">
                             <div className="flex items-center gap-3 w-full xs:w-auto">
