@@ -50,6 +50,7 @@
     "react-dom": "19.2.3",
     "react-email": "^5.2.8",
     "react-leaflet": "^5.0.0",
+    "sarvamai": "^1.1.4",
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3",
     "stream-chat": "^9.33.0",

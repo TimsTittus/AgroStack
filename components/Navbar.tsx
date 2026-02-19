@@ -36,6 +36,14 @@ export function Navbar() {
     refetchInterval: 30000, // poll every 30s
     staleTime: 25000,
   });
+  const { mutateAsync: readNotification } = trpc.notifications.readNotification.useMutation();
+  const utils = trpc.useUtils();
+  const { mutateAsync: dismissNotification } = trpc.notifications.dismissNotification.useMutation({
+    onSuccess: () => {
+      // Refetch notifications after dismissing
+      utils.notifications.getNotifications.invalidate();
+    },
+  });
 
   const notifications = notifData?.items ?? [];
   const totalUnread = notifData?.totalUnread ?? 0;
@@ -127,43 +135,60 @@ export function Navbar() {
                   </div>
                 ) : (
                   notifications.map((notif) => (
-                    <button
+                    <div
                       key={notif.id}
-                      onClick={() => {
-                        if (notif.link) router.push(notif.link);
-                        setNotifOpen(false);
-                      }}
-                      className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50 border-b border-gray-50 last:border-0 ${!notif.read ? "bg-green-50/30" : ""}`}
+                      className={`group relative w-full flex items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50 border-b border-gray-50 last:border-0 ${!notif.read ? "bg-green-50/30" : ""}`}
                     >
-                      <div className="flex-shrink-0 mt-0.5">
-                        {notif.image ? (
-                          <Avatar className="h-9 w-9 border border-gray-100">
-                            <AvatarImage src={notif.image} />
-                            <AvatarFallback className="bg-gradient-to-br from-green-50 to-green-100 text-green-700 font-semibold text-[10px]">
+                      {/* Dismiss button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          dismissNotification({ id: notif.id });
+                        }}
+                        className="absolute right-2 top-2 hidden group-hover:flex h-5 w-5 items-center justify-center rounded-full bg-gray-100 hover:bg-red-100 transition-colors z-10"
+                        title="Dismiss notification"
+                      >
+                        <X className="h-3 w-3 text-gray-400 hover:text-red-500" />
+                      </button>
+
+                      {/* Clickable content area */}
+                      <button
+                        onClick={() => {
+                          if (notif.link) router.push(notif.link);
+                          setNotifOpen(false);
+                        }}
+                        className="flex items-start gap-3 w-full text-left"
+                      >
+                        <div className="flex-shrink-0 mt-0.5">
+                          {notif.image ? (
+                            <Avatar className="h-9 w-9 border border-gray-100">
+                              <AvatarImage src={notif.image} />
+                              <AvatarFallback className="bg-gradient-to-br from-green-50 to-green-100 text-green-700 font-semibold text-[10px]">
+                                {notif.type === "message" ? <MessageSquare className="h-4 w-4" /> : <Package className="h-4 w-4" />}
+                              </AvatarFallback>
+                            </Avatar>
+                          ) : (
+                            <div className={`h-9 w-9 rounded-full flex items-center justify-center ${notif.type === "message" ? "bg-blue-50 text-blue-600" : "bg-amber-50 text-amber-600"}`}>
                               {notif.type === "message" ? <MessageSquare className="h-4 w-4" /> : <Package className="h-4 w-4" />}
-                            </AvatarFallback>
-                          </Avatar>
-                        ) : (
-                          <div className={`h-9 w-9 rounded-full flex items-center justify-center ${notif.type === "message" ? "bg-blue-50 text-blue-600" : "bg-amber-50 text-amber-600"}`}>
-                            {notif.type === "message" ? <MessageSquare className="h-4 w-4" /> : <Package className="h-4 w-4" />}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <p className={`text-xs truncate ${!notif.read ? "font-bold text-gray-900" : "font-medium text-gray-700"}`}>
+                              {notif.title}
+                            </p>
+                            <span className="text-[9px] text-gray-400 flex-shrink-0">{formatNotifTime(notif.timestamp)}</span>
+                          </div>
+                          <p className="text-[11px] text-gray-500 truncate mt-0.5">{notif.description}</p>
+                        </div>
+                        {!notif.read && (
+                          <div className="flex-shrink-0 mt-2">
+                            <div className="h-2 w-2 rounded-full bg-green-500" />
                           </div>
                         )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <p className={`text-xs truncate ${!notif.read ? "font-bold text-gray-900" : "font-medium text-gray-700"}`}>
-                            {notif.title}
-                          </p>
-                          <span className="text-[9px] text-gray-400 flex-shrink-0">{formatNotifTime(notif.timestamp)}</span>
-                        </div>
-                        <p className="text-[11px] text-gray-500 truncate mt-0.5">{notif.description}</p>
-                      </div>
-                      {!notif.read && (
-                        <div className="flex-shrink-0 mt-2">
-                          <div className="h-2 w-2 rounded-full bg-green-500" />
-                        </div>
-                      )}
-                    </button>
+                      </button>
+                    </div>
                   ))
                 )}
               </div>

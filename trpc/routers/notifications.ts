@@ -1,17 +1,27 @@
 import { createTRPCRouter, protectedProcedure } from "../init";
 import { db } from "@/db";
-import { messages, orders, listings, user } from "@/db/schema";
+import { messages, orders, listings, user, dismissedNotifications } from "@/db/schema";
 import { eq, and, desc, sql, or } from "drizzle-orm";
+import z from "zod";
 
 export const notificationsRouter = createTRPCRouter({
     /**
      * Aggregates real-time notifications from existing tables:
      * 1. Unread messages (grouped by sender)
      * 2. Recent order updates (pending/confirmed/completed)
-     * 3. Total unread count for the badge
+     * 3. Filters out dismissed notifications
+     * 4. Total unread count for the badge
      */
     getNotifications: protectedProcedure.query(async ({ ctx }) => {
         const userId = ctx.auth!.user.id;
+
+        // ── 0. Fetch dismissed notification IDs for this user ───────
+        const dismissed = await db
+            .select({ notificationId: dismissedNotifications.notificationId })
+            .from(dismissedNotifications)
+            .where(eq(dismissedNotifications.userId, userId));
+
+        const dismissedSet = new Set(dismissed.map((d) => d.notificationId));
 
         // ── 1. Unread messages grouped by sender ───────────────────
         const unreadMessages = await db
@@ -83,8 +93,10 @@ export const notificationsRouter = createTRPCRouter({
 
         // Message notifications
         for (const msg of unreadMessages) {
+            const notifId = `msg-${msg.senderId}`;
+            if (dismissedSet.has(notifId)) continue; // Skip dismissed
             notifications.push({
-                id: `msg-${msg.senderId}`,
+                id: notifId,
                 type: "message",
                 title: `New message${Number(msg.count) > 1 ? "s" : ""} from ${msg.senderName}`,
                 description: `${msg.count} unread message${Number(msg.count) > 1 ? "s" : ""}`,
@@ -97,6 +109,8 @@ export const notificationsRouter = createTRPCRouter({
 
         // Order notifications
         for (const order of recentOrders) {
+            const notifId = `order-${order.id}`;
+            if (dismissedSet.has(notifId)) continue; // Skip dismissed
             const statusLabels: Record<string, string> = {
                 pending: "📦 New order received",
                 placed: "🛒 Order placed",
@@ -105,7 +119,7 @@ export const notificationsRouter = createTRPCRouter({
                 cancelled: "❌ Order cancelled",
             };
             notifications.push({
-                id: `order-${order.id}`,
+                id: notifId,
                 type: "order",
                 title: statusLabels[order.status] || `Order ${order.status}`,
                 description: `${order.productName} — ${order.quantity} qty by ${order.otherUserName}`,
@@ -129,4 +143,49 @@ export const notificationsRouter = createTRPCRouter({
             totalUnread,
         };
     }),
+
+    readNotification: protectedProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
+        const userId = ctx.auth!.user.id;
+        const { id } = input;
+        await db.update(messages).set({ read: true }).where(eq(messages.id, id));
+        return { success: true };
+    }),
+
+    /**
+     * Dismiss / remove a notification.
+     * Persists the dismissal in the dismissed_notifications table so it
+     * survives page refreshes. For message notifications, also marks messages as read.
+     */
+    dismissNotification: protectedProcedure
+        .input(z.object({ id: z.string() }))
+        .mutation(async ({ ctx, input }) => {
+            const userId = ctx.auth!.user.id;
+            const { id } = input;
+
+            // For message notifications, also mark messages as read
+            if (id.startsWith("msg-")) {
+                const senderId = id.replace("msg-", "");
+                await db
+                    .update(messages)
+                    .set({ read: true })
+                    .where(
+                        and(
+                            eq(messages.receiverId, userId),
+                            eq(messages.senderId, senderId),
+                            eq(messages.read, false)
+                        )
+                    );
+            }
+
+            // Persist the dismissal in the DB (upsert — ignore if already exists)
+            await db
+                .insert(dismissedNotifications)
+                .values({
+                    userId,
+                    notificationId: id,
+                })
+                .onConflictDoNothing();
+
+            return { success: true };
+        }),
 });

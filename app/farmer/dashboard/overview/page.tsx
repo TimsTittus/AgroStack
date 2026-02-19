@@ -2,6 +2,12 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import dynamic from "next/dynamic";
+
+const MandiMap = dynamic(() => import("@/components/MandiMap"), {
+    ssr: false,
+    loading: () => <div className="h-64 w-full bg-gray-50 flex items-center justify-center text-xs text-gray-400">Loading Map...</div>
+});
 import {
     TrendingUp,
     TrendingDown,
@@ -19,9 +25,10 @@ import {
     Calendar as CalendarIcon,
     Trash2,
     Plus,
+    MapPin,
+    Search,
 } from "lucide-react";
-import { getMarketTickerData, MarketData, getHistoricalPrices } from "@/lib/mandi";
-import MarketRouterV2 from "@/components/MarketRouterV2";
+import { getMarketTickerData, MarketData, getHistoricalPrices, findBestMandis, geocodeLocation, MandiRecommendation } from "@/lib/mandi";
 import { AgroStackLogo } from "@/components/AgroStackLogo";
 
 // --- Self-contained UI Components (to avoid missing dependency issues) ---
@@ -417,6 +424,48 @@ export default function OverviewPage() {
 
         fetchWeather();
     }, []);
+
+    // ── Location & Mandi Optimizer ─────────────────────────────────
+    const [userLocation, setUserLocation] = useState<{ lat: number; lon: number; address: string } | null>(null);
+    const [locationQuery, setLocationQuery] = useState("");
+    const [isLocating, setIsLocating] = useState(false);
+    const [mandiRecommendations, setMandiRecommendations] = useState<MandiRecommendation[]>([]);
+
+    const fetchRecommendations = async (lat: number, lon: number) => {
+        const recs = await findBestMandis(selectedCrop.name, calcQuantity, lat, lon);
+        setMandiRecommendations(recs);
+    };
+
+    const handleGPS = () => {
+        if (!navigator.geolocation) return;
+        setIsLocating(true);
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            const { latitude, longitude } = pos.coords;
+            setUserLocation({ lat: latitude, lon: longitude, address: "GPS Location" });
+            await fetchRecommendations(latitude, longitude);
+            setIsLocating(false);
+        }, (err) => {
+            console.error(err);
+            setIsLocating(false);
+        });
+    };
+
+    const handleManualLocation = async () => {
+        if (!locationQuery) return;
+        setIsLocating(true);
+        const loc = await geocodeLocation(locationQuery);
+        if (loc) {
+            setUserLocation({ lat: loc.lat, lon: loc.lon, address: loc.display_name });
+            await fetchRecommendations(loc.lat, loc.lon);
+        }
+        setIsLocating(false);
+    };
+
+    React.useEffect(() => {
+        if (userLocation) {
+            fetchRecommendations(userLocation.lat, userLocation.lon);
+        }
+    }, [selectedCrop.name, calcQuantity]);
 
     React.useEffect(() => {
         const fetchPrices = async () => {
@@ -815,41 +864,110 @@ export default function OverviewPage() {
                 </div>
 
                 {/* Global Opportunities - Heatmap and Router */}
-                <div className="grid gap-6 md:grid-cols-2 lg:gap-8">
-                    <Card className="border-none bg-white shadow-xl shadow-green-900/5 transition-transform hover:scale-[1.01]">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-base md:text-lg text-[#1a2e1a]"><MapIcon className="h-4 w-4 md:h-5 md:w-5 text-[#2d6a4f]" /> Nearby Mandi Heatmap</CardTitle>
-                            <CardDescription className="text-xs md:text-sm">Price distribution within 50km of {DASHBOARD_DATA.analytics_deep_dive.market_heatmap.center}</CardDescription>
+                {/* Dynamically replaced Mandi Finder */}
+                <div className="w-full">
+                    <Card className="border-none bg-white shadow-xl shadow-green-900/5 transition-transform hover:scale-[1.005] overflow-hidden relative">
+                        <CardHeader className="pb-4">
+                            <CardTitle className="flex items-center gap-2 text-base md:text-lg text-[#1a2e1a]">
+                                <Navigation className="h-4 w-4 md:h-5 md:w-5 text-[#2d6a4f]" />
+                                Smart Mandi Finder
+                            </CardTitle>
+                            <CardDescription className="text-xs md:text-sm">
+                                Find the most profitable market based on your location and real-time prices.
+                            </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="relative h-48 w-full rounded-3xl bg-[#e8f0e4] flex items-center justify-center overflow-hidden">
-                                <div className="absolute inset-x-0 h-px bg-white/30 top-1/2" />
-                                <div className="absolute inset-y-0 w-px bg-white/30 left-1/2" />
-                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                                    <div className="h-8 w-8 md:h-10 md:w-10 rounded-full border-4 border-white bg-[#2d6a4f] shadow-lg animate-pulse" />
-                                    <p className="mt-2 text-center text-[8px] md:text-[10px] font-black uppercase text-[#1b4332] tracking-widest">{DASHBOARD_DATA.analytics_deep_dive.market_heatmap.center}</p>
+                            <div className="flex gap-2 mb-6">
+                                <div className="relative flex-1">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Enter Village / Pincode"
+                                        value={locationQuery}
+                                        onChange={(e) => setLocationQuery(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleManualLocation()}
+                                        disabled={isLocating}
+                                        className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-[#2d6a4f] transition-colors disabled:opacity-50"
+                                    />
                                 </div>
-                                {DASHBOARD_DATA.analytics_deep_dive.market_heatmap.locations.map((loc, i) => {
-                                    const x = (loc.lon - 76.6853) * 1000 + 50;
-                                    const y = (9.7118 - loc.lat) * 1000 + 50;
-                                    const liveBaseline = getLivePriceForCrop(selectedCrop.name) || selectedCrop.current_live_price;
-                                    return (
-                                        <div key={i} className="absolute group cursor-pointer" style={{ left: `${x}%`, top: `${y}%` }}>
-                                            <div className={`h-3 w-3 md:h-4 md:w-4 rounded-full border-2 border-white shadow-md ${loc.modal_price > liveBaseline ? 'bg-green-500' : 'bg-red-500'}`} />
-                                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-[#1b4332] text-white text-[9px] md:text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-                                                {loc.mandi}: ₹{loc.modal_price}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+                                <Button onClick={handleManualLocation} className="h-auto rounded-xl px-4">Find</Button>
+                                <button
+                                    onClick={handleGPS}
+                                    disabled={isLocating}
+                                    className="h-auto aspect-square flex items-center justify-center rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-50"
+                                    title="Use GPS"
+                                >
+                                    <MapIcon className="h-5 w-5" />
+                                </button>
                             </div>
+
+                            {/* Address Display */}
+                            {userLocation && (
+                                <div className="mb-4 flex items-center gap-2 text-xs text-gray-500 bg-gray-50 px-3 py-2 rounded-lg">
+                                    <MapPin className="h-3.5 w-3.5 text-[#2d6a4f]" />
+                                    <span className="font-medium">Location:</span> {userLocation.address}
+                                </div>
+                            )}
+
+                            {isLocating && (
+                                <div className="py-8 text-center text-gray-500 flex flex-col items-center gap-3">
+                                    <div className="h-6 w-6 border-2 border-[#2d6a4f] border-t-transparent rounded-full animate-spin" />
+                                    <p className="text-xs">Locating & Analyzing Markets...</p>
+                                </div>
+                            )}
+
+                            {!isLocating && mandiRecommendations.length > 0 && (
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-gray-400 px-2">
+                                        <span>Market Option</span>
+                                        <span>Profit Potential</span>
+                                    </div>
+                                    {mandiRecommendations.map((mandi, idx) => (
+                                        <div
+                                            key={idx}
+                                            className={`relative p-3 rounded-xl border transition-all hover:scale-[1.01] cursor-default
+                                                ${idx === 0 ? "bg-[#f0f7ed] border-[#2d6a4f] shadow-sm" : "bg-white border-gray-100 hover:border-gray-200"}
+                                            `}
+                                        >
+                                            <div className="flex justify-between items-center mb-1">
+                                                <h4 className={`text-sm font-bold ${idx === 0 ? "text-[#1a2e1a]" : "text-gray-700"}`}>{mandi.mandi_name}</h4>
+                                                <span className={`text-xs font-bold ${idx === 0 ? "text-[#2d6a4f]" : "text-gray-900"}`}>
+                                                    ₹{mandi.net_profit_per_kg.toFixed(2)}<span className="text-[10px] font-normal text-gray-500">/kg</span>
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-3 text-[10px] text-gray-500">
+                                                <span className="flex items-center gap-1"><Navigation className="h-3 w-3" /> {mandi.distance_km} km</span>
+                                                <span className="flex items-center gap-1">⏱ {mandi.travel_time_mins} min</span>
+                                                <span className="ml-auto font-medium text-gray-500">Modal Price: ₹{mandi.modal_price}</span>
+                                            </div>
+                                            {idx === 0 && (
+                                                <div className="absolute -top-2 -right-2 bg-[#2d6a4f] text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm flex items-center gap-1">
+                                                    BEST CHOICE
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                    <div className="mt-4 p-3 bg-gray-50 rounded-lg text-[10px] text-gray-500 leading-relaxed border border-gray-100">
+                                        <span className="font-bold text-gray-700">Profit Logic:</span> (Price × Yield) - (Road Distance × ₹0.5/kg/km × Yield). Estimated yield: {calcQuantity}kg.
+                                    </div>
+
+                                    {/* Map Visualization */}
+                                    {userLocation && (
+                                        <div className="mt-4 h-120 w-full rounded-xl overflow-hidden border border-gray-200 shadow-inner">
+                                            <MandiMap userLocation={userLocation} recommendations={mandiRecommendations} />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {!isLocating && mandiRecommendations.length === 0 && !userLocation && (
+                                <div className="py-8 text-center text-gray-400">
+                                    <MapPin className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                                    <p className="text-xs">Enter your location to find nearby markets</p>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
-
-                    <MarketRouterV2
-                        cropName={selectedCrop.name}
-                        baselinePrice={getLivePriceForCrop(selectedCrop.name) || selectedCrop.current_live_price}
-                    />
                 </div>
             </main>
         </div>
