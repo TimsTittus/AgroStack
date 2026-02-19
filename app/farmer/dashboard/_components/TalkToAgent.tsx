@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Phone, PhoneOff, Mic, MicOff, X, Sparkles } from "lucide-react";
+import { AgroStackLogo } from "@/components/AgroStackLogo";
 
 type Message = {
   role: "user" | "assistant";
@@ -457,7 +458,7 @@ export function TalkToAgent() {
                       ease: "easeInOut",
                     }}
                   >
-                    <Sparkles className="h-10 w-10 text-white" />
+                    <AgroStackLogo size={100} />
                   </motion.div>
                 </div>
 

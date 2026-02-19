@@ -22,11 +22,11 @@ import { AgroStackLogo } from "@/components/AgroStackLogo";
 const navItems = [
   { icon: BarChart3, label: "Overview", route: "/farmer/dashboard/overview" },
   { icon: ShoppingBag, label: "Listings", route: "/farmer/dashboard/listings" },
-  { icon: ChartCandlestick, label: "Stocks", route: "/farmer/dashboard/stocks" },
-  { icon: Package, label: "Orders", route: "/farmer/dashboard/orders" },
   { icon: Sprout, label: "Inventory", route: "/farmer/dashboard/inventory" },
-  { icon: Wallet, label: "Wallet", route: "/farmer/dashboard/wallet" },
   { icon: MessageCircle, label: "Messages", route: "/farmer/dashboard/messages" },
+  { icon: Package, label: "Orders", route: "/farmer/dashboard/orders" },
+  { icon: ChartCandlestick, label: "Stocks", route: "/farmer/dashboard/stocks" },
+  { icon: Wallet, label: "Wallet", route: "/farmer/dashboard/wallet" },
   { icon: Settings, label: "Settings", route: "/farmer/dashboard/settings" },
 ];
 
